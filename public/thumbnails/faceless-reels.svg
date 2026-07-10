@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#f8fafc"/>
+  <rect x="78" y="36" width="150" height="288" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="245" y="36" width="150" height="288" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="412" y="36" width="150" height="288" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="102" y="72" width="102" height="150" fill="#111827"/>
+  <rect x="269" y="72" width="102" height="150" fill="#10b981"/>
+  <rect x="436" y="72" width="102" height="150" fill="#f97316"/>
+  <rect x="102" y="246" width="86" height="14" fill="#9ca3af"/>
+  <rect x="269" y="246" width="86" height="14" fill="#9ca3af"/>
+  <rect x="436" y="246" width="86" height="14" fill="#9ca3af"/>
+  <text x="320" y="344" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#111827">FACELESS AI REELS</text>
+</svg>
