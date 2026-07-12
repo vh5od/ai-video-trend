@@ -3,10 +3,11 @@
 import { useState } from "react";
 import type { SourceItem } from "@/lib/types";
 import { Badge } from "./Badge";
+import { SourceActionLink } from "./SourceActionLink";
 
 export function SourceTable({ sources }: { sources: SourceItem[] }) {
   return (
-    <div className="overflow-hidden border border-line bg-white">
+    <div className="data-surface overflow-hidden border border-line bg-white">
       <table className="text-sm">
         <thead className="bg-slate-50 text-left text-xs uppercase text-muted">
           <tr>
@@ -21,7 +22,7 @@ export function SourceTable({ sources }: { sources: SourceItem[] }) {
         </thead>
         <tbody>
           {sources.map((source) => (
-            <tr key={source.id} className="border-t border-line align-top hover:bg-slate-50">
+            <tr key={source.id} className="motion-row border-t border-line align-top">
               <td className="px-3 py-3">
                 <SourcePreview source={source} />
               </td>
@@ -50,14 +51,7 @@ export function SourceTable({ sources }: { sources: SourceItem[] }) {
                 {new Date(source.publishedAt).toLocaleString()}
               </td>
               <td className="px-3 py-3">
-                <a
-                  className="text-xs font-medium text-blue-700 underline-offset-2 hover:underline"
-                  href={source.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open source
-                </a>
+                <SourceActionLink className="text-xs" href={source.url} />
               </td>
             </tr>
           ))}
@@ -80,7 +74,7 @@ function SourcePreview({ source }: { source: SourceItem }) {
 
   return (
     <a href={source.url} target="_blank" rel="noreferrer">
-      <div className="relative flex h-20 w-28 items-center justify-center overflow-hidden border border-line bg-slate-100">
+      <div className="media-preview relative flex h-20 w-28 items-center justify-center overflow-hidden rounded-lg border border-line bg-slate-100">
         {canShowImage ? (
           <img
             src={source.thumbnailUrl}

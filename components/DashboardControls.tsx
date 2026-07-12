@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import type {
   DashboardPlatformFilter,
   DashboardSortKey,
@@ -56,25 +57,23 @@ export function DashboardControls({
   ];
 
   return (
-    <section className="border border-line bg-white px-3 py-3">
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(160px,0.7fr)_minmax(160px,0.7fr)]">
+    <section className="dashboard-controls">
+      <div className="dashboard-controls-grid grid gap-3">
         <fieldset>
-          <legend className="mb-1 text-xs font-semibold uppercase text-muted">
+          <legend className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
             {controlText.timeWindow}
           </legend>
-          <div className="flex flex-wrap gap-1">
+          <div className="time-option-group inline-flex flex-wrap">
             {timePresets.map((option) => (
               <button
                 key={option.value}
                 type="button"
-                className={`border px-2.5 py-1 text-xs font-medium ${
-                  timePreset === option.value
-                    ? "border-blue-300 bg-blue-50 text-blue-700"
-                    : "border-line bg-white text-slate-700 hover:bg-slate-50"
+                className={`time-option-button ${
+                  timePreset === option.value ? "time-option-active" : ""
                 }`}
                 onClick={() => onTimePresetChange(option.value)}
               >
-                {option.label}
+                <ScrambleText text={option.label} />
               </button>
             ))}
           </div>
@@ -133,10 +132,10 @@ function ControlSelect<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <label className="text-xs font-semibold uppercase text-muted">
+    <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
       {label}
       <select
-        className="mt-1 block w-full border border-line bg-white px-2 py-1.5 text-sm font-normal text-ink"
+        className="dashboard-select mt-2 block h-10 w-full border-0 border-b border-line bg-transparent px-0 text-sm font-medium normal-case tracking-normal text-ink outline-none"
         value={value}
         onChange={(event) => onChange(event.target.value as T)}
       >
@@ -147,5 +146,42 @@ function ControlSelect<T extends string>({
         ))}
       </select>
     </label>
+  );
+}
+
+function ScrambleText({ text }: { text: string }) {
+  const [display, setDisplay] = useState(text);
+  const runRef = useRef(0);
+
+  const scramble = () => {
+    const run = ++runRef.current;
+    const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let frame = 0;
+    const tick = () => {
+      if (run !== runRef.current) return;
+      frame += 1;
+      const progress = frame / 7;
+      setDisplay(
+        Array.from(text)
+          .map((character, index) => {
+            if (/\s/.test(character) || index / text.length < progress) return character;
+            return glyphs[(index * 7 + frame * 11) % glyphs.length];
+          })
+          .join("")
+      );
+      if (frame < 7) window.setTimeout(tick, 32);
+      else setDisplay(text);
+    };
+    tick();
+  };
+
+  return (
+    <span
+      className="time-option-label"
+      onMouseEnter={scramble}
+      onFocus={scramble}
+    >
+      {display}
+    </span>
   );
 }

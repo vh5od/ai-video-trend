@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { SourceItem, TrendTopic } from "@/lib/types";
 import { Badge } from "./Badge";
+import { MonitorStatus } from "./MonitorStatus";
 
 export function TrendTable({
   trends,
@@ -12,7 +13,7 @@ export function TrendTable({
   const sourceById = new Map(sources.map((source) => [source.id, source]));
 
   return (
-    <div className="overflow-hidden border border-line bg-white">
+    <div className="data-surface overflow-hidden border border-line bg-white">
       <table className="text-sm">
         <thead className="bg-slate-50 text-left text-xs uppercase text-muted">
           <tr>
@@ -33,7 +34,7 @@ export function TrendTable({
             const representative = sourceById.get(trend.sourceIds[0]);
 
             return (
-              <tr key={trend.id} className="border-t border-line hover:bg-slate-50">
+              <tr key={trend.id} className="motion-row border-t border-line">
                 <td className="px-3 py-3 font-medium">{index + 1}</td>
                 <td className="px-3 py-3">
                   <Link href={`/trends/${trend.id}`}>
@@ -48,7 +49,7 @@ export function TrendTable({
                 </td>
                 <td className="px-3 py-3 font-semibold">{trend.heatScore}</td>
                 <td className="px-3 py-3">
-                  <Badge tone={trend.status}>{trend.status}</Badge>
+                  <MonitorStatus status={trend.status} />
                 </td>
                 <td className="px-3 py-3">{trend.platformBreakdown.tiktok ?? 0}</td>
                 <td className="px-3 py-3">{trend.platformBreakdown.instagram ?? 0}</td>
@@ -89,7 +90,7 @@ function PreviewThumb({ source }: { source?: SourceItem }) {
   }
 
   return (
-    <div className="relative h-16 w-24 overflow-hidden border border-line bg-slate-100">
+    <div className="media-preview relative h-16 w-24 overflow-hidden rounded-lg border border-line bg-slate-100">
       <img
         src={source.thumbnailUrl}
         alt={source.title}

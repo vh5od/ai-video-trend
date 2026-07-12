@@ -1,12 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import {
   CRAWL_STATE_STORAGE_KEY,
   restoreCrawlState,
   serializeCrawlState
 } from "@/lib/crawl-state";
 import type { CollectionRun, Settings } from "@/lib/types";
+import { TagListEditor } from "@/components/TagListEditor";
 
 interface SettingsForm {
   instagramHashtags: string;
@@ -39,13 +40,51 @@ interface PlannedTask {
   query: string;
 }
 
+const CRAWL_STATE_EVENT = "ai-video-trend-crawl-state-change";
+let activeCrawlAbortController: AbortController | null = null;
+let sessionCrawlResult: CrawlResult | null = null;
+let sessionRunningPlatform: CrawlResult["platform"] | null = null;
+
+function publishCrawlState() {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(
+    CRAWL_STATE_STORAGE_KEY,
+    serializeCrawlState({
+      result: sessionCrawlResult,
+      runningPlatform: sessionRunningPlatform
+    })
+  );
+  window.dispatchEvent(
+    new CustomEvent(CRAWL_STATE_EVENT, {
+      detail: {
+        result: sessionCrawlResult,
+        runningPlatform: sessionRunningPlatform
+      }
+    })
+  );
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [form, setForm] = useState<SettingsForm | null>(null);
   const [message, setMessage] = useState("");
-  const [crawlResult, setCrawlResult] = useState<CrawlResult | null>(null);
-  const [runningPlatform, setRunningPlatform] = useState<CrawlResult["platform"] | null>(null);
-  const crawlAbortRef = useRef<AbortController | null>(null);
+  const [crawlResult, setCrawlResultState] = useState<CrawlResult | null>(null);
+  const [runningPlatform, setRunningPlatformState] = useState<CrawlResult["platform"] | null>(null);
+
+  function setCrawlResult(
+    value: CrawlResult | null | ((current: CrawlResult | null) => CrawlResult | null)
+  ) {
+    sessionCrawlResult =
+      typeof value === "function" ? value(sessionCrawlResult) : value;
+    setCrawlResultState(sessionCrawlResult);
+    publishCrawlState();
+  }
+
+  function setRunningPlatform(value: CrawlResult["platform"] | null) {
+    sessionRunningPlatform = value;
+    setRunningPlatformState(value);
+    publishCrawlState();
+  }
 
   async function load() {
     const response = await fetch("/api/settings");
@@ -62,21 +101,31 @@ export default function SettingsPage() {
     const persisted = restoreCrawlState<CrawlResult>(
       window.localStorage.getItem(CRAWL_STATE_STORAGE_KEY)
     );
-    if (!persisted) return;
 
-    if (persisted.result?.status === "running") {
-      setCrawlResult({
-        ...persisted.result,
-        status: "paused",
-        message:
-          "Crawl state was restored after page navigation. The previous request may have been interrupted; run again when ready."
-      });
-      setRunningPlatform(null);
-      return;
+    if (persisted) {
+      sessionCrawlResult = persisted.result;
+      sessionRunningPlatform =
+        persisted.runningPlatform as CrawlResult["platform"] | null;
+      setCrawlResultState(sessionCrawlResult);
+      setRunningPlatformState(sessionRunningPlatform);
     }
 
-    setCrawlResult(persisted.result);
-    setRunningPlatform(persisted.runningPlatform as CrawlResult["platform"] | null);
+    const handleCrawlStateChange = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        result: CrawlResult | null;
+        runningPlatform: CrawlResult["platform"] | null;
+      }>).detail;
+      if (!detail) return;
+      sessionCrawlResult = detail.result;
+      sessionRunningPlatform = detail.runningPlatform;
+      setCrawlResultState(detail.result);
+      setRunningPlatformState(detail.runningPlatform);
+    };
+
+    window.addEventListener(CRAWL_STATE_EVENT, handleCrawlStateChange);
+    return () => {
+      window.removeEventListener(CRAWL_STATE_EVENT, handleCrawlStateChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -133,7 +182,7 @@ export default function SettingsPage() {
 
     setRunningPlatform(platform);
     const abortController = new AbortController();
-    crawlAbortRef.current = abortController;
+    activeCrawlAbortController = abortController;
     setCrawlResult({
       status: "running",
       platform,
@@ -217,8 +266,8 @@ export default function SettingsPage() {
             : "Daily crawl failed because the request could not complete."
       });
     } finally {
-      if (crawlAbortRef.current === abortController) {
-        crawlAbortRef.current = null;
+      if (activeCrawlAbortController === abortController) {
+        activeCrawlAbortController = null;
       }
       setRunningPlatform(null);
     }
@@ -226,7 +275,8 @@ export default function SettingsPage() {
 
   function stopDailyCrawl(status: "paused" | "stopped") {
     if (!runningPlatform) return;
-    crawlAbortRef.current?.abort();
+    activeCrawlAbortController?.abort();
+    activeCrawlAbortController = null;
     const platform = runningPlatform;
     setRunningPlatform(null);
     setCrawlResult((current) => ({
@@ -253,7 +303,7 @@ export default function SettingsPage() {
   const canRunAll = hasCrawlSources(settings, "all");
 
   return (
-    <div className="space-y-5">
+    <div className="editorial-subpage settings-page space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase text-muted">Local config</p>
@@ -305,29 +355,29 @@ export default function SettingsPage() {
         <section className="border border-line bg-white p-4">
           <h3 className="text-base font-semibold">Daily crawl sources</h3>
           <div className="mt-3 grid gap-4 md:grid-cols-2">
-            <TextList
+            <TagListEditor
               label="Instagram hashtags"
               value={form.instagramHashtags}
               onChange={(value) => setForm({ ...form, instagramHashtags: value })}
-              placeholder="aivideo&#10;aitools"
+              placeholder="ADD HASHTAG + ENTER"
             />
-            <TextList
+            <TagListEditor
               label="Instagram creators"
               value={form.instagramCreators}
               onChange={(value) => setForm({ ...form, instagramCreators: value })}
-              placeholder="runwayml&#10;heygen_official"
+              placeholder="ADD CREATOR + ENTER"
             />
-            <TextList
+            <TagListEditor
               label="TikTok hashtags"
               value={form.tiktokHashtags}
               onChange={(value) => setForm({ ...form, tiktokHashtags: value })}
-              placeholder="aivideo&#10;aitools"
+              placeholder="ADD HASHTAG + ENTER"
             />
-            <TextList
+            <TagListEditor
               label="TikTok creators"
               value={form.tiktokCreators}
               onChange={(value) => setForm({ ...form, tiktokCreators: value })}
-              placeholder="runwayml&#10;heygen"
+              placeholder="ADD CREATOR + ENTER"
             />
           </div>
         </section>
@@ -335,11 +385,11 @@ export default function SettingsPage() {
         <section className="border border-line bg-white p-4">
           <h3 className="text-base font-semibold">Integration keywords</h3>
           <div className="mt-3">
-            <TextList
+            <TagListEditor
               label="Video and comment keywords"
               value={form.keywords}
               onChange={(value) => setForm({ ...form, keywords: value })}
-              placeholder="AI video&#10;Runway&#10;AI avatar"
+              placeholder="ADD KEYWORD + ENTER"
             />
           </div>
         </section>
@@ -560,30 +610,6 @@ function Metric({ label, value }: { label: string; value: number }) {
       <p className="text-lg font-semibold">{value}</p>
       <p className="text-xs uppercase">{label}</p>
     </div>
-  );
-}
-
-function TextList({
-  label,
-  value,
-  onChange,
-  placeholder
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-}) {
-  return (
-    <label className="text-sm">
-      <span className="mb-1 block font-medium">{label}</span>
-      <textarea
-        className="min-h-32 w-full border border-line px-3 py-2 text-sm outline-none focus:border-slate-400"
-        placeholder={placeholder}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
   );
 }
 

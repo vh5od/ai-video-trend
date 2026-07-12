@@ -307,7 +307,7 @@ export default function CollectionPage() {
     selectedVisibleCount === visibleCandidateIds.length;
 
   return (
-    <div className="space-y-5">
+    <div className="editorial-subpage collection-page space-y-5">
       <header>
         <p className="text-xs font-semibold uppercase text-muted">
           Collection validation

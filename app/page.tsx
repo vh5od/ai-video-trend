@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { SourceItem, TrendTopic } from "@/lib/types";
 import { useI18n } from "@/components/AppShell";
 import { MetricStrip } from "@/components/MetricStrip";
+import { MonitorStatus } from "@/components/MonitorStatus";
 import { DashboardControls } from "@/components/DashboardControls";
 import { FollowUpCandidates } from "@/components/FollowUpCandidates";
 import { SourceLeaderboard } from "@/components/SourceLeaderboard";
@@ -143,51 +144,57 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase text-muted">
-            {dictionary.dashboard.eyebrow}
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold">{dictionary.dashboard.title}</h2>
-          <p className="mt-2 max-w-4xl text-sm text-muted">
-            {dictionary.dashboard.description}
-          </p>
+      <section className="dashboard-overview">
+        <header className="dashboard-overview-header flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase text-muted">
+              {dictionary.dashboard.eyebrow}
+            </p>
+            <h2 className="mt-1 text-2xl font-semibold">{dictionary.dashboard.title}</h2>
+            <p className="mt-2 max-w-4xl text-sm text-muted">
+              {dictionary.dashboard.description}
+            </p>
+          </div>
+          <div className="dashboard-overview-actions">
+            <MonitorStatus
+              className="justify-end"
+              prefix="CURRENTLY:"
+              status={trendSummaries[0]?.trend.status ?? "stable"}
+            />
+            <Link href="/trends" className="dashboard-trend-link text-sm font-semibold text-ink">
+              {dictionary.dashboard.trendCardsLink}
+            </Link>
+          </div>
+        </header>
+        <MetricStrip
+          items={[
+            { label: dictionary.dashboard.tiktokSources, value: selectedStats.tiktok },
+            { label: dictionary.dashboard.instagramSources, value: selectedStats.instagram },
+            {
+              label: dictionary.dashboard.totalEngagement,
+              value: formatCompactNumber(selectedStats.engagement)
+            },
+            { label: dictionary.dashboard.mappedTrends, value: selectedStats.trends },
+            { label: dictionary.dashboard.followUps, value: selectedStats.followUps }
+          ]}
+        />
+        <DashboardControls
+          timePreset={timePreset}
+          platform={platform}
+          sortKey={sortKey}
+          customStart={customStart}
+          customEnd={customEnd}
+          onTimePresetChange={setTimePreset}
+          onPlatformChange={setPlatform}
+          onSortKeyChange={setSortKey}
+          onCustomStartChange={setCustomStart}
+          onCustomEndChange={setCustomEnd}
+        />
+        <div className="dashboard-window-note text-xs text-muted">
+          {dictionary.dashboard.showingWindow} {timeWindow.start.toLocaleString()} -{" "}
+          {timeWindow.end.toLocaleString()}.
         </div>
-        <Link
-          href="/trends"
-          className="border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50"
-        >
-          {dictionary.dashboard.trendCardsLink}
-        </Link>
-      </header>
-      <MetricStrip
-        items={[
-          { label: dictionary.dashboard.tiktokSources, value: selectedStats.tiktok },
-          { label: dictionary.dashboard.instagramSources, value: selectedStats.instagram },
-          {
-            label: dictionary.dashboard.totalEngagement,
-            value: formatCompactNumber(selectedStats.engagement)
-          },
-          { label: dictionary.dashboard.mappedTrends, value: selectedStats.trends },
-          { label: dictionary.dashboard.followUps, value: selectedStats.followUps }
-        ]}
-      />
-      <DashboardControls
-        timePreset={timePreset}
-        platform={platform}
-        sortKey={sortKey}
-        customStart={customStart}
-        customEnd={customEnd}
-        onTimePresetChange={setTimePreset}
-        onPlatformChange={setPlatform}
-        onSortKeyChange={setSortKey}
-        onCustomStartChange={setCustomStart}
-        onCustomEndChange={setCustomEnd}
-      />
-      <div className="border border-line bg-slate-50 px-3 py-2 text-xs text-muted">
-        {dictionary.dashboard.showingWindow} {timeWindow.start.toLocaleString()} -{" "}
-        {timeWindow.end.toLocaleString()}.
-      </div>
+      </section>
       <SourceLeaderboard sources={rankedSources} trendsBySourceId={trendsBySourceId} />
       <TimeWindowTrendMap summaries={trendSummaries} />
       <FollowUpCandidates candidates={followUpCandidates} />

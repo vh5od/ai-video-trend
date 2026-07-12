@@ -19,3 +19,5 @@ tsconfig.tsbuildinfo
 *.tsbuildinfo
 Thumbs.db
 .DS_Store
+
+chrome-profile/

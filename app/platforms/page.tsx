@@ -20,12 +20,12 @@ const rows = [
 
 export default function PlatformsPage() {
   return (
-    <div className="space-y-5">
+    <div className="editorial-subpage platforms-page space-y-5">
       <header>
         <p className="text-xs font-semibold uppercase text-muted">Provider scope</p>
         <h2 className="mt-1 text-2xl font-semibold">Platforms</h2>
       </header>
-      <div className="border border-line bg-white">
+      <div className="data-surface border border-line bg-white">
         <table className="text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-muted">
             <tr>

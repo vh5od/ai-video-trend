@@ -60,15 +60,23 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <I18nContext.Provider value={contextValue}>
-      <div className="min-h-screen border-l border-line bg-slate-50 text-ink">
-        <aside className="fixed inset-y-0 left-0 flex w-56 flex-col border-r border-line bg-white">
-          <div className="border-b border-line px-5 py-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Private Radar
-            </p>
-            <h1 className="mt-1 text-lg font-semibold">AI Video Trends</h1>
+      <div className="app-canvas min-h-screen text-ink">
+        <aside className="app-sidebar fixed inset-y-0 left-0 flex w-60 flex-col border-r border-line">
+          <div className="border-b border-line px-5 py-6">
+            <pre className="brand-mark radar-scope" aria-hidden="true">{`  /\\
+ /--\\
+<|()|>
+ \\--/
+  \\/`}</pre>
+            <div>
+              <p className="system-cursor mt-4 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                Private Radar
+              </p>
+              <h1 className="mt-1 font-mono text-[15px] font-bold uppercase tracking-[-0.04em]">AI Video Trends</h1>
+            </div>
+            <div className="ascii-rule mt-4" aria-hidden="true" />
           </div>
-          <nav className="space-y-1 px-3 py-4">
+          <nav className="space-y-1 px-3 py-5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active =
@@ -78,20 +86,22 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+                  data-active={active}
+                  className={`nav-link flex h-11 items-center gap-3 rounded-md px-3 font-mono text-xs font-bold uppercase tracking-[0.04em] ${
                     active
-                      ? "bg-slate-900 text-white"
-                      : "text-slate-700 hover:bg-slate-100"
+                      ? "bg-black text-white"
+                      : "text-slate-700 hover:bg-stone-200 hover:text-ink"
                   }`}
                 >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  {dictionary.nav[item.labelKey]}
+                  <span className="nav-glyph" aria-hidden="true">{active ? "[+]" : "[ ]"}</span>
+                  <Icon className="sr-only" aria-hidden="true" />
+                  <span className="nav-label">{dictionary.nav[item.labelKey]}</span>
                 </Link>
               );
             })}
           </nav>
-          <div className="mt-auto border-t border-line p-3">
-            <div className="flex items-center gap-2 rounded-md border border-line bg-slate-50 p-1">
+          <div className="mt-auto border-t border-line p-4">
+<div className="flex items-center gap-2 rounded-lg border border-line bg-white p-1">
               <Languages className="ml-2 h-4 w-4 text-muted" aria-hidden="true" />
               <button
                 type="button"
@@ -114,7 +124,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </aside>
-        <main className="ml-56 min-h-screen px-8 py-6">{children}</main>
+        <main className="app-shell-main ml-60 min-h-screen px-9 py-8">{children}</main>
       </div>
     </I18nContext.Provider>
   );

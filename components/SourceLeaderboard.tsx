@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { SourceItem, TrendTopic } from "@/lib/types";
 import { formatCompactNumber, sourceHeatScore } from "@/lib/dashboard";
 import { Badge } from "./Badge";
+import { SourceActionLink } from "./SourceActionLink";
 
 export function SourceLeaderboard({
   sources,
@@ -14,7 +15,7 @@ export function SourceLeaderboard({
   trendsBySourceId: Map<string, TrendTopic[]>;
 }) {
   return (
-    <section className="overflow-hidden border border-line bg-white">
+    <section className="source-leaderboard overflow-hidden border border-line bg-white">
       <div className="border-b border-line px-3 py-2">
         <h3 className="text-sm font-semibold text-ink">Source leaderboard</h3>
         <p className="text-xs text-muted">
@@ -22,7 +23,7 @@ export function SourceLeaderboard({
         </p>
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-[1180px] text-sm">
+        <table className="source-leaderboard-table min-w-[1180px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-muted">
             <tr>
               <th className="px-3 py-2">Rank</th>
@@ -43,7 +44,7 @@ export function SourceLeaderboard({
               return (
                 <tr
                   key={source.id}
-                  className="border-t border-line align-top hover:bg-slate-50"
+                  className="motion-row border-t border-line align-top"
                 >
                   <td className="px-3 py-3 font-semibold text-slate-700">
                     {index + 1}
@@ -84,14 +85,7 @@ export function SourceLeaderboard({
                     {formatDate(source.collectedAt)}
                   </td>
                   <td className="px-3 py-3">
-                    <a
-                      className="text-xs font-medium text-blue-700 underline-offset-2 hover:underline"
-                      href={source.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Open source
-                    </a>
+                    <SourceActionLink href={source.url} />
                     <div className="mt-2 flex max-w-xs flex-wrap gap-1">
                       {trends.length > 0 ? (
                         trends.map((trend) => (
@@ -142,7 +136,7 @@ function SourcePreview({ source }: { source: SourceItem }) {
 
   return (
     <a href={source.url} target="_blank" rel="noreferrer">
-      <div className="relative flex h-20 w-28 items-center justify-center overflow-hidden border border-line bg-slate-100">
+      <div className="media-preview relative flex h-20 w-28 items-center justify-center overflow-hidden rounded-lg border border-line bg-slate-100">
         {canShowImage ? (
           <img
             src={source.thumbnailUrl}
@@ -165,6 +159,7 @@ function SourcePreview({ source }: { source: SourceItem }) {
     </a>
   );
 }
+
 
 function formatDate(value: string) {
   const date = new Date(value);

@@ -6,6 +6,7 @@ import type { SourceItem } from "@/lib/types";
 import type { TimeWindowTrendSummary } from "@/lib/dashboard";
 import { formatCompactNumber } from "@/lib/dashboard";
 import { Badge } from "./Badge";
+import { MonitorStatus } from "./MonitorStatus";
 
 export function TimeWindowTrendMap({
   summaries
@@ -17,7 +18,7 @@ export function TimeWindowTrendMap({
   );
 
   return (
-    <section className="overflow-hidden border border-line bg-white">
+    <section className="data-surface overflow-hidden border border-line bg-white">
       <div className="border-b border-line px-3 py-2">
         <h3 className="text-sm font-semibold text-ink">Time-window trend map</h3>
         <p className="text-xs text-muted">
@@ -42,7 +43,7 @@ export function TimeWindowTrendMap({
             {visibleSummaries.map((summary) => (
               <tr
                 key={summary.trend.id}
-                className="border-t border-line align-top hover:bg-slate-50"
+                className="motion-row border-t border-line align-top"
               >
                 <td className="px-3 py-3">
                   <Link
@@ -59,7 +60,7 @@ export function TimeWindowTrendMap({
                   {formatCompactNumber(summary.trend.heatScore)}
                 </td>
                 <td className="px-3 py-3">
-                  <Badge tone={summary.trend.status}>{summary.trend.status}</Badge>
+                  <MonitorStatus status={summary.trend.status} />
                 </td>
                 <td className="px-3 py-3 font-medium">
                   {summary.platformBreakdown.tiktok}
@@ -110,7 +111,7 @@ function TrendPreview({ source }: { source?: SourceItem }) {
 
   return (
     <a href={source.url} target="_blank" rel="noreferrer">
-      <div className="relative flex h-16 w-24 items-center justify-center overflow-hidden border border-line bg-slate-100">
+      <div className="media-preview relative flex h-16 w-24 items-center justify-center overflow-hidden rounded-lg border border-line bg-slate-100">
         {canShowImage ? (
           <img
             src={source.thumbnailUrl}

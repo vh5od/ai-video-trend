@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { FollowUpCandidate } from "@/lib/dashboard";
 import { formatCompactNumber, sourceHeatScore } from "@/lib/dashboard";
 import { Badge } from "./Badge";
+import { SourceActionLink } from "./SourceActionLink";
 
 export function FollowUpCandidates({
   candidates
@@ -11,7 +12,7 @@ export function FollowUpCandidates({
   const topCandidates = candidates.slice(0, 8);
 
   return (
-    <section className="border border-line bg-white">
+    <section className="data-surface border border-line bg-white">
       <div className="border-b border-line px-3 py-2">
         <h3 className="text-sm font-semibold text-ink">Follow-up candidates</h3>
         <p className="text-xs text-muted">
@@ -22,7 +23,7 @@ export function FollowUpCandidates({
         {topCandidates.map((candidate, index) => (
           <article
             key={candidate.source.id}
-            className="grid gap-3 px-3 py-3 hover:bg-slate-50 lg:grid-cols-[40px_minmax(0,1.1fr)_minmax(0,1.4fr)_120px]"
+            className="motion-row grid gap-3 px-3 py-3 lg:grid-cols-[40px_minmax(0,1.1fr)_minmax(0,1.4fr)_120px]"
           >
             <div className="text-sm font-semibold text-slate-700">
               {index + 1}
@@ -43,14 +44,10 @@ export function FollowUpCandidates({
                 {candidate.source.title || candidate.source.text || "Untitled source"}
               </p>
               <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                <a
-                  className="font-medium text-blue-700 underline-offset-2 hover:underline"
+                <SourceActionLink
+                  className="text-xs"
                   href={candidate.source.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open source
-                </a>
+                />
                 {candidate.trend ? (
                   <Link
                     className="font-medium text-slate-700 underline-offset-2 hover:underline"
