@@ -1,11 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import {
-  CRAWL_STATE_STORAGE_KEY,
-  restoreCrawlState,
-  serializeCrawlState
-} from "@/lib/crawl-state";
+import { FormEvent, useEffect, useState, useSyncExternalStore } from "react";
+import type { CrawlResult } from "@/lib/crawl-state";
+import { crawlStateStore, hydrateBrowserCrawlState } from "@/lib/crawl-state-store";
 import type { CollectionRun, Settings } from "@/lib/types";
 import { TagListEditor } from "@/components/TagListEditor";
 
@@ -23,68 +20,19 @@ interface SettingsForm {
   refreshSchedule: string;
 }
 
-interface CrawlResult {
-  status: "running" | "success" | "partial" | "failed" | "paused" | "stopped";
-  platform: "instagram" | "tiktok" | "all";
-  tasks: number;
-  itemsFound: number;
-  itemsStored: number;
-  runs: CollectionRun[];
-  message: string;
-  plannedTasks?: PlannedTask[];
-}
-
-interface PlannedTask {
-  platform: "instagram" | "tiktok";
-  mode: "hashtag" | "keyword" | "account";
-  query: string;
-}
-
-const CRAWL_STATE_EVENT = "ai-video-trend-crawl-state-change";
-let activeCrawlAbortController: AbortController | null = null;
-let sessionCrawlResult: CrawlResult | null = null;
-let sessionRunningPlatform: CrawlResult["platform"] | null = null;
-
-function publishCrawlState() {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(
-    CRAWL_STATE_STORAGE_KEY,
-    serializeCrawlState({
-      result: sessionCrawlResult,
-      runningPlatform: sessionRunningPlatform
-    })
-  );
-  window.dispatchEvent(
-    new CustomEvent(CRAWL_STATE_EVENT, {
-      detail: {
-        result: sessionCrawlResult,
-        runningPlatform: sessionRunningPlatform
-      }
-    })
-  );
-}
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [form, setForm] = useState<SettingsForm | null>(null);
   const [message, setMessage] = useState("");
-  const [crawlResult, setCrawlResultState] = useState<CrawlResult | null>(null);
-  const [runningPlatform, setRunningPlatformState] = useState<CrawlResult["platform"] | null>(null);
+  const crawlState = useSyncExternalStore(
+    crawlStateStore.subscribe,
+    crawlStateStore.getSnapshot,
+    crawlStateStore.getServerSnapshot
+  );
+  const crawlResult = crawlState.result;
+  const runningPlatform = crawlState.runningPlatform;
 
-  function setCrawlResult(
-    value: CrawlResult | null | ((current: CrawlResult | null) => CrawlResult | null)
-  ) {
-    sessionCrawlResult =
-      typeof value === "function" ? value(sessionCrawlResult) : value;
-    setCrawlResultState(sessionCrawlResult);
-    publishCrawlState();
-  }
-
-  function setRunningPlatform(value: CrawlResult["platform"] | null) {
-    sessionRunningPlatform = value;
-    setRunningPlatformState(value);
-    publishCrawlState();
-  }
 
   async function load() {
     const response = await fetch("/api/settings");
@@ -97,43 +45,10 @@ export default function SettingsPage() {
     void load();
   }, []);
 
+
   useEffect(() => {
-    const persisted = restoreCrawlState<CrawlResult>(
-      window.localStorage.getItem(CRAWL_STATE_STORAGE_KEY)
-    );
-
-    if (persisted) {
-      sessionCrawlResult = persisted.result;
-      sessionRunningPlatform =
-        persisted.runningPlatform as CrawlResult["platform"] | null;
-      setCrawlResultState(sessionCrawlResult);
-      setRunningPlatformState(sessionRunningPlatform);
-    }
-
-    const handleCrawlStateChange = (event: Event) => {
-      const detail = (event as CustomEvent<{
-        result: CrawlResult | null;
-        runningPlatform: CrawlResult["platform"] | null;
-      }>).detail;
-      if (!detail) return;
-      sessionCrawlResult = detail.result;
-      sessionRunningPlatform = detail.runningPlatform;
-      setCrawlResultState(detail.result);
-      setRunningPlatformState(detail.runningPlatform);
-    };
-
-    window.addEventListener(CRAWL_STATE_EVENT, handleCrawlStateChange);
-    return () => {
-      window.removeEventListener(CRAWL_STATE_EVENT, handleCrawlStateChange);
-    };
+    hydrateBrowserCrawlState();
   }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      CRAWL_STATE_STORAGE_KEY,
-      serializeCrawlState({ result: crawlResult, runningPlatform })
-    );
-  }, [crawlResult, runningPlatform]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -168,7 +83,7 @@ export default function SettingsPage() {
     const visibleSettings = formToSettings(form, settings);
 
     if (!hasCrawlSources(visibleSettings, platform)) {
-      setCrawlResult({
+      crawlStateStore.setResult({
         status: "failed",
         platform,
         tasks: 0,
@@ -180,17 +95,17 @@ export default function SettingsPage() {
       return;
     }
 
-    setRunningPlatform(platform);
+    crawlStateStore.setRunningPlatform(platform);
     const abortController = new AbortController();
-    activeCrawlAbortController = abortController;
-    setCrawlResult({
+    crawlStateStore.setActiveController(abortController);
+    crawlStateStore.setResult({
       status: "running",
       platform,
       tasks: 0,
       itemsFound: 0,
       itemsStored: 0,
       runs: [],
-      message: `${platformLabel(platform)} crawl is saving current settings, then running. Keep this page open until the result appears.`
+      message: `${platformLabel(platform)} crawl is saving current settings, then running. You can continue browsing while this runs.`
     });
 
     try {
@@ -208,7 +123,7 @@ export default function SettingsPage() {
       const json = await readJsonResponse(response);
 
       if (!response.ok) {
-        setCrawlResult({
+        crawlStateStore.setResult({
           status: "failed",
           platform,
           tasks: 0,
@@ -232,7 +147,7 @@ export default function SettingsPage() {
             : failedRuns.length === runs.length
               ? "failed"
               : "partial";
-      setCrawlResult({
+      crawlStateStore.setResult({
         status,
         platform: json.platform ?? platform,
         tasks: json.tasks ?? runs.length,
@@ -253,7 +168,7 @@ export default function SettingsPage() {
       if (error instanceof DOMException && error.name === "AbortError") {
         return;
       }
-      setCrawlResult({
+      crawlStateStore.setResult({
         status: "failed",
         platform,
         tasks: 0,
@@ -266,20 +181,17 @@ export default function SettingsPage() {
             : "Daily crawl failed because the request could not complete."
       });
     } finally {
-      if (activeCrawlAbortController === abortController) {
-        activeCrawlAbortController = null;
-      }
-      setRunningPlatform(null);
+      crawlStateStore.clearActiveController(abortController);
+      crawlStateStore.setRunningPlatform(null);
     }
   }
 
   function stopDailyCrawl(status: "paused" | "stopped") {
     if (!runningPlatform) return;
-    activeCrawlAbortController?.abort();
-    activeCrawlAbortController = null;
+    crawlStateStore.abortActiveController();
     const platform = runningPlatform;
-    setRunningPlatform(null);
-    setCrawlResult((current) => ({
+    crawlStateStore.setRunningPlatform(null);
+    crawlStateStore.setResult((current) => ({
       status,
       platform,
       tasks: current?.tasks ?? 0,
@@ -328,7 +240,7 @@ export default function SettingsPage() {
             label="Run All"
             onClick={() => runDailyCrawl("all")}
           />
-          {runningPlatform ? (
+          {runningPlatform && crawlStateStore.hasActiveController() ? (
             <>
               <button
                 type="button"
@@ -486,7 +398,7 @@ function CrawlResultPanel({ result }: { result: CrawlResult }) {
         ? "border-amber-200 bg-amber-50 text-amber-950"
         : result.status === "running"
           ? "border-blue-200 bg-blue-50 text-blue-950"
-          : result.status === "paused" || result.status === "stopped"
+          : result.status === "paused" || result.status === "stopped" || result.status === "interrupted"
             ? "border-slate-200 bg-slate-50 text-slate-950"
           : "border-red-200 bg-red-50 text-red-950";
 
@@ -498,7 +410,7 @@ function CrawlResultPanel({ result }: { result: CrawlResult }) {
           <p className="mt-1 text-sm">
             {result.status === "running"
               ? `Opening configured ${platformLabel(result.platform)} crawl tasks.`
-              : result.status === "paused" || result.status === "stopped"
+              : result.status === "paused" || result.status === "stopped" || result.status === "interrupted"
                 ? `Last crawl status: ${result.status}.`
               : `${readyRuns.length} tasks completed, ${failedRuns.length} failed.`}
           </p>
