@@ -12,6 +12,10 @@ import type {
   SourceItem,
   SourceMetrics
 } from "./types";
+import {
+  browserSessionUnavailableMessage,
+  isCloudBrowserSessionUnavailable
+} from "./deployment";
 
 const crawlerPlatforms = new Set<Platform>(["instagram", "tiktok"]);
 const crawlerModes = new Set<CrawlerMode>(["hashtag", "keyword", "account"]);
@@ -236,8 +240,10 @@ export function getCrawlerProviderStatuses(
     providerStatus({
       platform: platform as CrawlerTask["platform"],
       provider: "browser_session",
-      status: "partial",
-      message: `${titleCase(platform)} browser-session collection connects to a local Chrome/Edge DevTools endpoint and uses the logged-in page state.`,
+      status: isCloudBrowserSessionUnavailable(env) ? "not_configured" : "partial",
+      message: isCloudBrowserSessionUnavailable(env)
+        ? browserSessionUnavailableMessage()
+        : `${titleCase(platform)} browser-session collection connects to a local Chrome/Edge DevTools endpoint and uses the logged-in page state.`,
       capabilities: ["hashtag", "keyword", "account", "local_cdp_browser_session"],
       missing: ["BROWSER_CDP_URL or http://127.0.0.1:9222"]
     })

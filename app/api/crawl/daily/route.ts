@@ -11,6 +11,10 @@ import {
   writeCollectionRuns,
   writeCollectionCandidates
 } from "@/lib/data-store";
+import {
+  browserSessionUnavailableMessage,
+  isCloudBrowserSessionUnavailable
+} from "@/lib/deployment";
 import type { CollectionRun } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -24,6 +28,26 @@ export async function POST(request: Request) {
     const platform = normalizePlatform(body.platform);
     const settings = await readSettings();
     const tasks = buildDailyCrawlTasks(settings, { platform });
+
+    if (tasks.length > 0 && isCloudBrowserSessionUnavailable()) {
+      return NextResponse.json(
+        {
+          platform,
+          tasks: 0,
+          plannedTasks: tasks.map((task) => ({
+            platform: task.platform,
+            mode: task.mode,
+            query: task.query
+          })),
+          itemsFound: 0,
+          itemsStored: 0,
+          runs: [],
+          topics: [],
+          error: browserSessionUnavailableMessage()
+        },
+        { status: 503 }
+      );
+    }
 
     if (tasks.length === 0) {
       return NextResponse.json({

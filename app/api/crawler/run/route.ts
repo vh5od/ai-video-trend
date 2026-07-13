@@ -5,6 +5,10 @@ import {
   validateCrawlerTask
 } from "@/lib/crawler";
 import {
+  browserSessionUnavailableMessage,
+  isCloudBrowserSessionUnavailable
+} from "@/lib/deployment";
+import {
   readCollectionRuns,
   readCollectionCandidates,
   readSettings,
@@ -46,6 +50,23 @@ export async function POST(request: Request) {
 
   const now = new Date().toISOString();
   if (task.provider === "browser_session") {
+    if (isCloudBrowserSessionUnavailable()) {
+      const run = buildRun({
+        id: `run_crawler_${Date.now()}`,
+        task,
+        now,
+        itemsFound: 0,
+        itemsStored: 0,
+        status: "failed",
+        message: browserSessionUnavailableMessage()
+      });
+      await withDataStoreLock(async () => {
+        const runs = await readCollectionRuns();
+        await writeCollectionRuns([run, ...runs]);
+      });
+      return NextResponse.json({ run, candidates: [] }, { status: 503 });
+    }
+
     try {
       const browserResult = await collectBrowserSessionItems({ task });
       task.items = browserResult.items;

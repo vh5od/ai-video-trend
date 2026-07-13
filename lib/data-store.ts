@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { neon } from "@neondatabase/serverless";
 import type {
   CollectionCandidate,
   CollectionRun,
@@ -8,6 +9,25 @@ import type {
   SourceItem,
   TrendTopic
 } from "./types";
+
+type AppStateKey =
+  | "settings"
+  | "source-items"
+  | "trend-topics"
+  | "collection-runs"
+  | "collection-candidates";
+
+const stateKeysByFileName: Record<string, AppStateKey> = {
+  "settings.json": "settings",
+  "source-items.json": "source-items",
+  "trend-topics.json": "trend-topics",
+  "collection-runs.json": "collection-runs",
+  "collection-candidates.json": "collection-candidates"
+};
+
+const postgresUrl = process.env.DATABASE_URL?.trim();
+const postgresSql = postgresUrl ? neon(postgresUrl) : null;
+let postgresInit: Promise<void> | null = null;
 
 function dataDir() {
   return process.env.AI_VIDEO_TREND_DATA_DIR || path.join(process.cwd(), "data");
@@ -32,6 +52,10 @@ export async function withDataStoreLock<T>(operation: () => Promise<T>): Promise
 }
 
 async function readJson<T>(fileName: string, fallback: T): Promise<T> {
+  if (postgresSql) {
+    return readPostgresJson(stateKey(fileName), fallback);
+  }
+
   try {
     const raw = await readFile(path.join(dataDir(), fileName), "utf8");
     return JSON.parse(raw) as T;
@@ -44,6 +68,11 @@ async function readJson<T>(fileName: string, fallback: T): Promise<T> {
 }
 
 async function writeJson<T>(fileName: string, value: T): Promise<void> {
+  if (postgresSql) {
+    await writePostgresJson(stateKey(fileName), value);
+    return;
+  }
+
   const directory = dataDir();
   const targetPath = path.join(directory, fileName);
   const tempPath = path.join(directory, `.${fileName}.${randomUUID()}.tmp`);
@@ -55,6 +84,59 @@ async function writeJson<T>(fileName: string, value: T): Promise<void> {
   } catch {
     throw new Error(`Failed to write ${fileName}.`);
   }
+}
+
+function stateKey(fileName: string): AppStateKey {
+  const key = stateKeysByFileName[fileName];
+  if (!key) {
+    throw new Error(`No app_state key is configured for ${fileName}.`);
+  }
+  return key;
+}
+
+async function ensurePostgresTable(): Promise<void> {
+  if (!postgresSql) return;
+
+  postgresInit ??= postgresSql`
+    CREATE TABLE IF NOT EXISTS app_state (
+      key text PRIMARY KEY,
+      value jsonb NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `.then(() => undefined);
+
+  await postgresInit;
+}
+
+async function readPostgresJson<T>(key: AppStateKey, fallback: T): Promise<T> {
+  if (!postgresSql) return fallback;
+
+  await ensurePostgresTable();
+  const rows = (await postgresSql`
+    SELECT value
+    FROM app_state
+    WHERE key = ${key}
+    LIMIT 1
+  `) as Array<{ value: T }>;
+
+  if (rows.length === 0) {
+    await writePostgresJson(key, fallback);
+    return fallback;
+  }
+
+  return rows[0].value;
+}
+
+async function writePostgresJson<T>(key: AppStateKey, value: T): Promise<void> {
+  if (!postgresSql) return;
+
+  await ensurePostgresTable();
+  await postgresSql`
+    INSERT INTO app_state (key, value, updated_at)
+    VALUES (${key}, ${JSON.stringify(value)}::jsonb, now())
+    ON CONFLICT (key)
+    DO UPDATE SET value = EXCLUDED.value, updated_at = now()
+  `;
 }
 
 function isMissingFileError(error: unknown): boolean {

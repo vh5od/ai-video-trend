@@ -211,7 +211,7 @@ export class CdpBrowserSessionClient implements BrowserSessionClient {
 
       for (const link of links) {
         await connection.send("Page.navigate", { url: link.url }, this.commandTimeoutMs);
-        await wait(1800);
+        await wait(platform === "instagram" ? 4500 : 1800);
         const detailResponse = await connection.send(
           "Runtime.evaluate",
           {
@@ -615,19 +615,69 @@ function parseInstagramMetadata(
 } {
   const structured = extractInstagramStructuredMetadata(combined);
   const authorFromDescription = description.match(/-\s*([^@:\n]+?)\s+on\s+/i)?.[1]?.trim();
+  const localized = parseInstagramLocalizedAuthorAndDate(description);
   const authorFromTitle =
     title.match(/(?:photo|video|reel)\s+by\s+([^(@|\n]+?)(?:\s+on\s+Instagram|$)/i)?.[1]?.trim() ||
     title.match(/^([^(@|\n]+?)\s+on\s+Instagram/i)?.[1]?.trim();
   const quoted = description.match(/:\s*["“]([^"”]+)["”]/)?.[1]?.trim();
-  const fallbackAuthorHandle = normalizeParsedHandle(authorFromDescription || authorFromTitle);
+  const fallbackAuthorHandle = normalizeParsedHandle(
+    localized.author || authorFromDescription || authorFromTitle
+  );
   return {
-    authorName: structuredAuthor.authorName || structured.authorName || authorFromDescription || authorFromTitle,
+    authorName:
+      structuredAuthor.authorName ||
+      structured.authorName ||
+      localized.author ||
+      authorFromDescription ||
+      authorFromTitle,
     authorId: structuredAuthor.authorId || structured.authorId,
     authorHandle: structuredAuthor.authorHandle || structured.authorHandle || fallbackAuthorHandle,
-    publishedAt: structured.publishedAt,
+    publishedAt: structured.publishedAt || localized.publishedAt,
     text: quoted || removeEngagementPrefix(description),
     ...extractEngagement(combined)
   };
+}
+
+function parseInstagramLocalizedAuthorAndDate(description: string): {
+  author?: string;
+  publishedAt?: string;
+} {
+  const match = description.match(
+    /-\s*([a-z0-9._]+)\s*[，,]\s*([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})\s*:/i
+  );
+  if (!match) return {};
+
+  const month = monthIndex(match[2]);
+  const day = Number(match[3]);
+  const year = Number(match[4]);
+  const publishedAt =
+    month === undefined || !Number.isFinite(day) || !Number.isFinite(year)
+      ? undefined
+      : new Date(Date.UTC(year, month, day)).toISOString();
+
+  return {
+    author: match[1],
+    publishedAt
+  };
+}
+
+function monthIndex(value: string): number | undefined {
+  const index = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december"
+  ].indexOf(value.toLowerCase());
+
+  return index >= 0 ? index : undefined;
 }
 
 function findInstagramAuthor(

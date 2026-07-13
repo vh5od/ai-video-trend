@@ -199,6 +199,24 @@ describe("browser session detail metadata parser", () => {
     expect(item.publishedAt).toBe("2026-07-07T08:30:00.000Z");
   });
 
+  test("parses localized Instagram meta with handle and date", () => {
+    const item = parseBrowserDetailMetadata({
+      platform: "instagram",
+      url: "https://www.instagram.com/p/DaXUR14N3QD/",
+      title:
+        'Instagram 用户 Maria Rubtsova : "Comment PROMPT and I’ll DM you the link"',
+      description:
+        '31K likes, 528 comments -  dreamfall.art，July 4, 2026 : "Comment PROMPT and I’ll DM you the link to my Viral Prompt Pack."'
+    });
+
+    expect(item.authorHandle).toBe("dreamfall.art");
+    expect(item.authorName).toBe("dreamfall.art");
+    expect(item.publishedAt).toBe("2026-07-04T00:00:00.000Z");
+    expect(item.likes).toBe(31000);
+    expect(item.commentsCount).toBe(528);
+    expect(item.text).toBe("Comment PROMPT and I’ll DM you the link to my Viral Prompt Pack.");
+  });
+
   test("parses TikTok detail metadata with creator and engagement", () => {
     const item = parseBrowserDetailMetadata({
       platform: "tiktok",
