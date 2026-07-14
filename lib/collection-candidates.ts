@@ -1,4 +1,7 @@
-import { normalizeCrawlerItemForSource } from "./crawler";
+import {
+  normalizeCrawlerItemForSource,
+  refreshDuplicateSourceThumbnail
+} from "./crawler";
 import type {
   CollectionCandidate,
   CollectionCandidateFilters,
@@ -22,9 +25,14 @@ export function buildCollectionCandidates({
   keywords: string[];
   minLikes: number;
   now: string;
-}): { candidates: CollectionCandidate[]; invalid: number } {
+}): {
+  candidates: CollectionCandidate[];
+  invalid: number;
+  updatedSources: SourceItem[];
+} {
   const knownByUrl = new Map<string, string>();
   const knownByExternalId = new Map<string, string>();
+  const existingSourcesById = new Map<string, SourceItem>();
 
   for (const candidate of existingCandidates) {
     knownByUrl.set(candidate.source.url, candidate.id);
@@ -34,9 +42,11 @@ export function buildCollectionCandidates({
   for (const source of existingSources) {
     knownByUrl.set(source.url, source.id);
     knownByExternalId.set(source.externalId, source.id);
+    existingSourcesById.set(source.id, source);
   }
 
   const candidates: CollectionCandidate[] = [];
+  const updatedSources: SourceItem[] = [];
   let invalid = 0;
 
   for (const raw of task.items ?? []) {
@@ -48,6 +58,15 @@ export function buildCollectionCandidates({
 
     const duplicateOf =
       knownByUrl.get(source.url) || knownByExternalId.get(source.externalId);
+    const existingSource = duplicateOf
+      ? existingSourcesById.get(duplicateOf)
+      : undefined;
+    const refreshedSource = existingSource
+      ? refreshDuplicateSourceThumbnail(existingSource, source)
+      : undefined;
+    if (refreshedSource) {
+      updatedSources.push(refreshedSource);
+    }
     const matchedKeywords = matchedConfiguredKeywords(source, keywords);
     const candidate: CollectionCandidate = {
       id: `cand_${source.id}`,
@@ -77,7 +96,7 @@ export function buildCollectionCandidates({
     candidates.push(candidate);
   }
 
-  return { candidates, invalid };
+  return { candidates, invalid, updatedSources };
 }
 
 export function matchedConfiguredKeywords(

@@ -19,6 +19,7 @@ import {
   type Dictionary,
   type Locale
 } from "@/lib/i18n";
+import { isLocalWorkspaceHost } from "@/lib/deployment";
 
 interface I18nContextValue {
   locale: Locale;
@@ -39,12 +40,14 @@ const navItems = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [locale, setLocaleState] = useState<Locale>("en");
+  const [showLocalWorkspace, setShowLocalWorkspace] = useState(false);
 
   useEffect(() => {
     const stored = localeFromStorage(window.localStorage.getItem(LOCALE_STORAGE_KEY));
     if (stored) {
       setLocaleState(stored);
     }
+    setShowLocalWorkspace(isLocalWorkspaceHost(window.location.hostname));
   }, []);
 
   const setLocale = (nextLocale: Locale) => {
@@ -77,7 +80,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="ascii-rule mt-4" aria-hidden="true" />
           </div>
           <nav className="space-y-1 px-3 py-5">
-            {navItems.map((item) => {
+            {navItems
+              .filter(
+                (item) =>
+                  showLocalWorkspace ||
+                  item.href === "/" ||
+                  item.href === "/trends"
+              )
+              .map((item) => {
               const Icon = item.icon;
               const active =
                 item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { collectBrowserSessionItems } from "@/lib/browser-session-crawler";
 import { buildCollectionCandidates } from "@/lib/collection-candidates";
 import {
+  applyCrawlerItemUpdates,
   validateCrawlerTask
 } from "@/lib/crawler";
 import {
@@ -15,7 +16,8 @@ import {
   readSourceItems,
   withDataStoreLock,
   writeCollectionRuns,
-  writeCollectionCandidates
+  writeCollectionCandidates,
+  writeSourceItems
 } from "@/lib/data-store";
 import type { CollectionRun } from "@/lib/types";
 
@@ -119,6 +121,9 @@ export async function POST(request: Request) {
     });
 
     await Promise.all([
+      result.updatedSources.length > 0
+        ? writeSourceItems(applyCrawlerItemUpdates(sources, result.updatedSources))
+        : Promise.resolve(),
       writeCollectionCandidates(nextCandidates),
       writeCollectionRuns([run, ...runs])
     ]);

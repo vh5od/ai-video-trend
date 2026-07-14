@@ -368,6 +368,47 @@ describe("crawler item import", () => {
     });
   });
 
+  test("refreshes duplicate thumbnails without changing collected time", () => {
+    const staleSource: SourceItem = {
+      ...existingSource,
+      thumbnailUrl:
+        "https://p16-common-sign.tiktokcdn-us.com/old-expiring-thumbnail.jpeg",
+      collectedAt: "2026-07-01T00:00:00.000Z"
+    };
+
+    const result = importCrawlerItems({
+      task: {
+        platform: "instagram",
+        mode: "hashtag",
+        query: "aivideo",
+        provider: "manual_import",
+        limit: 50,
+        filterToKeywords: false,
+        sortBy: "as_provided",
+        items: [
+          {
+            id: "existing",
+            caption: "Existing AI video",
+            url: "https://www.instagram.com/reel/existing/",
+            thumbnailUrl:
+              "https://scontent-sea5-1.cdninstagram.com/new-thumbnail.jpg",
+            timestamp: "2026-07-01T00:00:00.000Z"
+          }
+        ]
+      },
+      existingSources: [staleSource],
+      now: "2026-07-14T00:00:00.000Z"
+    });
+
+    const nextSources = applyCrawlerItemUpdates([staleSource], result.updated);
+
+    expect(result.updated).toHaveLength(1);
+    expect(nextSources[0].thumbnailUrl).toBe(
+      "https://scontent-sea5-1.cdninstagram.com/new-thumbnail.jpg"
+    );
+    expect(nextSources[0].collectedAt).toBe("2026-07-01T00:00:00.000Z");
+  });
+
   test("rejects browser-session Instagram items without verified author and publish time", () => {
     const result = importCrawlerItems({
       task: {

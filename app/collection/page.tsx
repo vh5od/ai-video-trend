@@ -518,15 +518,7 @@ export default function CollectionPage() {
                     <td className="py-2 pr-3">{candidate.status}</td>
                     <td className="py-2 pr-3">{candidate.source.platform}</td>
                     <td className="py-2 pr-3">
-                      {candidate.source.thumbnailUrl ? (
-                        <img
-                          src={candidate.source.thumbnailUrl}
-                          alt=""
-                          className="h-12 w-16 object-cover"
-                        />
-                      ) : (
-                        "-"
-                      )}
+                      <CandidatePreview source={candidate.source} />
                     </td>
                     <td className="max-w-xs py-2 pr-3">
                       <a
@@ -865,6 +857,29 @@ export default function CollectionPage() {
         <SourceTable sources={sources.filter((source) => source.platform === "x")} />
       </section>
     </div>
+  );
+}
+
+function CandidatePreview({ source }: { source: SourceItem }) {
+  const [failed, setFailed] = useState(false);
+  const canShowImage = Boolean(source.thumbnailUrl) && !failed;
+
+  if (!canShowImage) {
+    return (
+      <div className="flex h-12 w-16 items-center justify-center bg-slate-100 text-[10px] font-medium uppercase text-muted">
+        {source.platform}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={source.thumbnailUrl}
+      alt=""
+      className="h-12 w-16 object-cover"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
   );
 }
 

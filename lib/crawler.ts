@@ -201,6 +201,24 @@ export function applyCrawlerItemUpdates(
   return nextSources;
 }
 
+export function refreshDuplicateSourceThumbnail(
+  existing: SourceItem,
+  incoming: SourceItem
+): SourceItem | undefined {
+  if (!shouldReplaceThumbnail(existing.thumbnailUrl, incoming.thumbnailUrl)) {
+    return undefined;
+  }
+
+  return {
+    ...existing,
+    thumbnailUrl: incoming.thumbnailUrl,
+    raw: {
+      ...existing.raw,
+      latestThumbnailRefresh: incoming.raw
+    }
+  };
+}
+
 export function getCrawlerProviderStatuses(
   env: Readonly<Record<string, string | undefined>> = process.env
 ): ProviderStatus[] {
@@ -617,7 +635,9 @@ function mergeBetterCrawlerSource(existing: SourceItem, incoming: SourceItem): S
       comments: existing.metrics.comments ?? incoming.metrics.comments,
       shares: existing.metrics.shares ?? incoming.metrics.shares
     },
-    thumbnailUrl: existing.thumbnailUrl || incoming.thumbnailUrl,
+    thumbnailUrl:
+      refreshDuplicateSourceThumbnail(existing, incoming)?.thumbnailUrl ??
+      existing.thumbnailUrl,
     videoUrl: existing.videoUrl || incoming.videoUrl,
     comments:
       existing.comments && existing.comments.length > 0
@@ -630,7 +650,7 @@ function mergeBetterCrawlerSource(existing: SourceItem, incoming: SourceItem): S
       ...existing.raw,
       latestCrawlerItem: incoming.raw
     },
-    collectedAt: incoming.collectedAt
+    collectedAt: existing.collectedAt
   };
 
   return JSON.stringify(merged) === JSON.stringify(existing) ? existing : merged;
@@ -673,6 +693,26 @@ function shouldReplacePublishedAt(existing: string, incoming: string): boolean {
   if (Number.isNaN(incomingTime)) return false;
   const existingTime = new Date(existing).getTime();
   return Number.isNaN(existingTime) || existingTime !== incomingTime;
+}
+
+function shouldReplaceThumbnail(existing?: string, incoming?: string): boolean {
+  if (!incoming) return false;
+  if (!existing) return true;
+  if (existing === incoming) return false;
+  return isPlatformThumbnailUrl(existing) || isPlatformThumbnailUrl(incoming);
+}
+
+function isPlatformThumbnailUrl(value: string): boolean {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return (
+      host.includes("tiktokcdn") ||
+      host.includes("cdninstagram") ||
+      host.includes("fbcdn")
+    );
+  } catch {
+    return false;
+  }
 }
 
 function publishedAtFromTikTokVideoId(url: string): string | undefined {

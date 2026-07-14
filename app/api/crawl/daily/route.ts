@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { collectBrowserSessionItems } from "@/lib/browser-session-crawler";
 import { buildCollectionCandidates } from "@/lib/collection-candidates";
+import { applyCrawlerItemUpdates } from "@/lib/crawler";
 import { buildDailyCrawlTasks, isFatalBrowserSessionError } from "@/lib/daily-crawl";
 import {
   readCollectionRuns,
@@ -9,7 +10,8 @@ import {
   readSourceItems,
   withDataStoreLock,
   writeCollectionRuns,
-  writeCollectionCandidates
+  writeCollectionCandidates,
+  writeSourceItems
 } from "@/lib/data-store";
 import {
   browserSessionUnavailableMessage,
@@ -69,6 +71,7 @@ export async function POST(request: Request) {
     const runs: CollectionRun[] = [];
     let workingCandidates = existingCandidates;
     let collectedCandidates: typeof existingCandidates = [];
+    let refreshedSources: typeof existingSources = [];
     let itemsFound = 0;
     let itemsStored = 0;
 
@@ -95,6 +98,7 @@ export async function POST(request: Request) {
 
         workingCandidates = [...result.candidates, ...workingCandidates];
         collectedCandidates = [...result.candidates, ...collectedCandidates];
+        refreshedSources = [...result.updatedSources, ...refreshedSources];
         itemsFound += browserResult.items.length;
         itemsStored += result.candidates.length;
         runs.push({
@@ -131,12 +135,16 @@ export async function POST(request: Request) {
     }
 
     await withDataStoreLock(async () => {
-      const [freshCandidates, existingRuns] = await Promise.all([
+      const [freshSources, freshCandidates, existingRuns] = await Promise.all([
+        readSourceItems(),
         readCollectionCandidates(),
         readCollectionRuns()
       ]);
 
       await Promise.all([
+        refreshedSources.length > 0
+          ? writeSourceItems(applyCrawlerItemUpdates(freshSources, refreshedSources))
+          : Promise.resolve(),
         writeCollectionCandidates(mergeCandidates(collectedCandidates, freshCandidates)),
         writeCollectionRuns([...runs, ...existingRuns])
       ]);

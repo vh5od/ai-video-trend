@@ -144,6 +144,45 @@ describe("collection candidate builder", () => {
     expect(result.candidates[0].review.duplicateOf).toBe(existing[0].id);
   });
 
+  test("refreshes duplicate dashboard thumbnails without changing collected time", () => {
+    const existingSource = source({
+      thumbnailUrl:
+        "https://p16-common-sign.tiktokcdn-us.com/old-expiring-thumbnail.jpeg",
+      collectedAt: "2026-07-09T01:00:00.000Z"
+    });
+    const result = buildCollectionCandidates({
+      task: {
+        ...task,
+        items: [
+          {
+            id: "abc",
+            url: "https://www.instagram.com/reel/abc/",
+            text: "AI avatar product demo with talking presenter",
+            authorHandle: "creator",
+            publishedAt: "2026-07-09T00:00:00.000Z",
+            thumbnailUrl:
+              "https://scontent-sea5-1.cdninstagram.com/new-thumbnail.jpg",
+            likes: 1200
+          }
+        ]
+      },
+      existingCandidates: [],
+      existingSources: [existingSource],
+      keywords: ["AI avatar"],
+      minLikes: 1000,
+      now: "2026-07-14T01:00:00.000Z"
+    });
+
+    expect(result.candidates[0].status).toBe("duplicate");
+    expect(result.updatedSources).toHaveLength(1);
+    expect(result.updatedSources[0].thumbnailUrl).toBe(
+      "https://scontent-sea5-1.cdninstagram.com/new-thumbnail.jpg"
+    );
+    expect(result.updatedSources[0].collectedAt).toBe(
+      "2026-07-09T01:00:00.000Z"
+    );
+  });
+
   test("matches configured keywords as complete words instead of substrings", () => {
     const result = buildCollectionCandidates({
       task: {
