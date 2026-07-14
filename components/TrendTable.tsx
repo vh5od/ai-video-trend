@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { SourceItem, TrendTopic } from "@/lib/types";
 import { Badge } from "./Badge";
 import { MonitorStatus } from "./MonitorStatus";
+import { SourceThumbnail } from "./SourceThumbnail";
 
 export function TrendTable({
   trends,
@@ -81,7 +82,7 @@ export function TrendTable({
 }
 
 function PreviewThumb({ source }: { source?: SourceItem }) {
-  if (!source?.thumbnailUrl) {
+  if (!source) {
     return (
       <div className="flex h-16 w-24 items-center justify-center border border-line bg-slate-100 text-xs text-muted">
         No media
@@ -91,11 +92,7 @@ function PreviewThumb({ source }: { source?: SourceItem }) {
 
   return (
     <div className="media-preview relative h-16 w-24 overflow-hidden rounded-lg border border-line bg-slate-100">
-      <img
-        src={source.thumbnailUrl}
-        alt={source.title}
-        className="h-full w-full object-cover"
-      />
+      <SourceThumbnail source={source} className="h-full w-full object-cover" />
       {source.videoUrl ? (
         <span className="absolute bottom-1 right-1 bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
           video

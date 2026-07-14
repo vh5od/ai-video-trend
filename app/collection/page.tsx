@@ -9,6 +9,7 @@ import type {
 } from "@/lib/types";
 import { Badge } from "@/components/Badge";
 import { SourceTable } from "@/components/SourceTable";
+import { SourceThumbnail } from "@/components/SourceThumbnail";
 import { apiFetch } from "@/lib/client-api";
 
 interface StatusResponse {
@@ -85,26 +86,34 @@ export default function CollectionPage() {
   const [crawlerMessage, setCrawlerMessage] = useState("");
   const [inboxMessage, setInboxMessage] = useState("");
   const [isPromoting, setIsPromoting] = useState(false);
+  const [isRepairingThumbnails, setIsRepairingThumbnails] = useState(false);
+  const [thumbnailRepairCount, setThumbnailRepairCount] = useState(0);
 
   async function load() {
-    const [statusResponse, sourceResponse, candidateResponse] = await Promise.all([
-      apiFetch("/api/collection/status"),
-      apiFetch("/api/sources"),
-      apiFetch(
-        `/api/collection/candidates?${buildCandidateQuery({
-          status: candidateStatus,
-          keywordMatched: keywordFilter,
-          platform: platformFilter,
-          seedMode: seedModeFilter,
-          seedQuery: seedQueryFilter
-        }).toString()}`
-      )
-    ]);
+    const [statusResponse, sourceResponse, candidateResponse, repairResponse] =
+      await Promise.all([
+        apiFetch("/api/collection/status"),
+        apiFetch("/api/sources"),
+        apiFetch(
+          `/api/collection/candidates?${buildCandidateQuery({
+            status: candidateStatus,
+            keywordMatched: keywordFilter,
+            platform: platformFilter,
+            seedMode: seedModeFilter,
+            seedQuery: seedQueryFilter
+          }).toString()}`
+        ),
+        apiFetch("/api/thumbnail-repairs")
+      ]);
     setStatus(await statusResponse.json());
     const sourceJson = await sourceResponse.json();
     const candidateJson = await candidateResponse.json();
+    const repairJson = await repairResponse.json();
     setSources(sourceJson.sources);
     setCandidates(candidateJson.candidates ?? []);
+    setThumbnailRepairCount(
+      (repairJson.counts?.pending ?? 0) + (repairJson.counts?.failed ?? 0)
+    );
   }
 
   useEffect(() => {
@@ -280,6 +289,35 @@ export default function CollectionPage() {
     }
   }
 
+  async function repairBrokenThumbnails() {
+    if (isRepairingThumbnails) return;
+    setIsRepairingThumbnails(true);
+    setInboxMessage(
+      "Refreshing broken thumbnails through the connected Chrome session..."
+    );
+
+    try {
+      const response = await apiFetch("/api/thumbnail-repairs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 10 })
+      });
+      const json = await response.json();
+      setInboxMessage(
+        response.ok
+          ? json.message
+          : json.error ?? "Thumbnail repair failed."
+      );
+      await load();
+    } catch (error) {
+      setInboxMessage(
+        error instanceof Error ? error.message : "Thumbnail repair failed."
+      );
+    } finally {
+      setIsRepairingThumbnails(false);
+    }
+  }
+
   function toggleCandidate(id: string, checked: boolean) {
     setSelectedIds((current) =>
       checked ? Array.from(new Set([...current, id])) : current.filter((item) => item !== id)
@@ -399,6 +437,16 @@ export default function CollectionPage() {
             className="border border-line px-3 py-2 text-sm hover:bg-slate-50"
           >
             Delete selected
+          </button>
+          <button
+            type="button"
+            onClick={() => void repairBrokenThumbnails()}
+            disabled={isRepairingThumbnails || thumbnailRepairCount === 0}
+            className="border border-line px-3 py-2 text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-muted"
+          >
+            {isRepairingThumbnails
+              ? "Repairing thumbnails..."
+              : `Repair thumbnails (${thumbnailRepairCount})`}
           </button>
           <button
             type="button"
@@ -861,24 +909,12 @@ export default function CollectionPage() {
 }
 
 function CandidatePreview({ source }: { source: SourceItem }) {
-  const [failed, setFailed] = useState(false);
-  const canShowImage = Boolean(source.thumbnailUrl) && !failed;
-
-  if (!canShowImage) {
-    return (
-      <div className="flex h-12 w-16 items-center justify-center bg-slate-100 text-[10px] font-medium uppercase text-muted">
-        {source.platform}
-      </div>
-    );
-  }
-
   return (
-    <img
-      src={source.thumbnailUrl}
-      alt=""
+    <SourceThumbnail
+      source={source}
       className="h-12 w-16 object-cover"
-      referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
+      fallbackClassName="flex h-12 w-16 items-center justify-center bg-slate-100 text-[10px] font-medium uppercase text-muted"
+      alt=""
     />
   );
 }

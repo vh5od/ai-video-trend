@@ -7,6 +7,7 @@ import { Badge } from "@/components/Badge";
 import { MonitorStatus } from "@/components/MonitorStatus";
 import { SourceTable } from "@/components/SourceTable";
 import { SourceActionLink } from "@/components/SourceActionLink";
+import { SourceThumbnail } from "@/components/SourceThumbnail";
 import { buildFollowUpCandidates } from "@/lib/dashboard";
 import { apiFetch } from "@/lib/client-api";
 
@@ -79,10 +80,10 @@ export default function TrendDetailPage() {
                 src={representative.videoUrl}
               />
             ) : representative.thumbnailUrl ? (
-              <img
-                src={representative.thumbnailUrl}
-                alt={representative.title}
+              <SourceThumbnail
+                source={representative}
                 className="aspect-video w-full object-cover"
+                fallbackClassName="flex aspect-video w-full items-center justify-center text-sm text-muted"
               />
             ) : (
               <div className="flex aspect-video w-full items-center justify-center text-sm text-muted">

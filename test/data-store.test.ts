@@ -47,6 +47,29 @@ describe("data store durability", () => {
     }
   });
 
+  test("round-trips thumbnail repair jobs in local storage", async () => {
+    const dataDir = await mkdtemp(path.join(tmpdir(), "trend-data-"));
+    const store = await loadDataStore(dataDir);
+
+    try {
+      await store.writeThumbnailRepairs([
+        {
+          sourceId: "source_1",
+          platform: "instagram",
+          sourceUrl: "https://www.instagram.com/p/one/",
+          status: "pending",
+          attempts: 0,
+          reportedAt: "2026-07-01T00:00:00.000Z",
+          updatedAt: "2026-07-01T00:00:00.000Z"
+        }
+      ]);
+
+      expect(await store.readThumbnailRepairs()).toHaveLength(1);
+    } finally {
+      await rm(dataDir, { recursive: true, force: true });
+    }
+  });
+
   test("does not silently replace corrupt JSON with fallback data", async () => {
     const dataDir = await mkdtemp(path.join(tmpdir(), "trend-data-"));
     const store = await loadDataStore(dataDir);

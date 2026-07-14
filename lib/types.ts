@@ -46,6 +46,20 @@ export interface SourceItem {
   seeded: boolean;
 }
 
+export type ThumbnailRepairStatus = "pending" | "processing" | "repaired" | "failed";
+
+export interface ThumbnailRepair {
+  sourceId: string;
+  platform: Extract<Platform, "instagram" | "tiktok">;
+  sourceUrl: string;
+  status: ThumbnailRepairStatus;
+  attempts: number;
+  reportedAt: string;
+  updatedAt: string;
+  repairedAt?: string;
+  error?: string;
+}
+
 export type CollectionCandidateStatus =
   | "pending"
   | "approved"

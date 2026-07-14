@@ -300,5 +300,14 @@ describe("browser session auth blocker detection", () => {
         bodyText: "Help us confirm you own this account"
       })
     ).toContain("Instagram browser session is blocked by login or verification");
+
+    expect(
+      detectBrowserSessionBlock({
+        platform: "instagram",
+        currentUrl: "https://www.instagram.com/accounts/suspended/",
+        title: "Instagram",
+        bodyText: "Appeal submitted"
+      })
+    ).toContain("Instagram browser session account is suspended");
   });
 });

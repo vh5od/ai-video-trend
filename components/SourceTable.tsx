@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import type { SourceItem } from "@/lib/types";
 import { Badge } from "./Badge";
 import { SourceActionLink } from "./SourceActionLink";
+import { SourceThumbnail } from "./SourceThumbnail";
 
 export function SourceTable({ sources }: { sources: SourceItem[] }) {
   return (
@@ -69,25 +69,10 @@ export function SourceTable({ sources }: { sources: SourceItem[] }) {
 }
 
 function SourcePreview({ source }: { source: SourceItem }) {
-  const [failed, setFailed] = useState(false);
-  const canShowImage = Boolean(source.thumbnailUrl) && !failed;
-
   return (
     <a href={source.url} target="_blank" rel="noreferrer">
       <div className="media-preview relative flex h-20 w-28 items-center justify-center overflow-hidden rounded-lg border border-line bg-slate-100">
-        {canShowImage ? (
-          <img
-            src={source.thumbnailUrl}
-            alt={source.title}
-            className="h-full w-full object-cover"
-            referrerPolicy="no-referrer"
-            onError={() => setFailed(true)}
-          />
-        ) : (
-          <div className="px-2 text-center text-xs font-medium uppercase tracking-wide text-muted">
-            {source.platform}
-          </div>
-        )}
+        <SourceThumbnail source={source} className="h-full w-full object-cover" />
         {source.videoUrl ? (
           <span className="absolute bottom-1 right-1 bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
             video

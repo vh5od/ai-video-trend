@@ -27,6 +27,10 @@ export function isProtectedRoute(request: Request): boolean {
     return true;
   }
 
+  if (pathname === "/api/thumbnail-repairs") {
+    return true;
+  }
+
   return false;
 }
 

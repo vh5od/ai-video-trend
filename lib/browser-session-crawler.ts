@@ -67,6 +67,11 @@ export interface CollectBrowserSessionItemsResult {
   items: BrowserSessionRawItem[];
 }
 
+export interface BrowserSessionDetailSource {
+  url: string;
+  platform: CrawlerTask["platform"];
+}
+
 interface CdpTarget {
   id: string;
   webSocketDebuggerUrl?: string;
@@ -128,6 +133,14 @@ export async function collectBrowserSessionItems({
   });
 
   return { url, items };
+}
+
+export async function collectBrowserSessionDetails(
+  sources: BrowserSessionDetailSource[],
+  cdpUrl?: string
+): Promise<BrowserSessionRawItem[]> {
+  const client = new CdpBrowserSessionClient(cdpUrl);
+  return client.collectDetailItems(sources);
 }
 
 export class CdpBrowserSessionClient implements BrowserSessionClient {
@@ -231,6 +244,81 @@ export class CdpBrowserSessionClient implements BrowserSessionClient {
       }
 
       return normalizeBrowserItems(items);
+    } finally {
+      connection.close();
+      await this.closeTarget(target.id);
+    }
+  }
+
+  async collectDetailItems(
+    sources: BrowserSessionDetailSource[]
+  ): Promise<BrowserSessionRawItem[]> {
+    if (sources.length === 0) return [];
+
+    const target = await this.createTarget(sources[0].url);
+    if (!target.webSocketDebuggerUrl) {
+      throw new Error("Browser CDP target did not expose a WebSocket debugger URL.");
+    }
+
+    const connection = await withTimeout(
+      CdpConnection.connect(target.webSocketDebuggerUrl),
+      this.commandTimeoutMs,
+      "Timed out connecting to browser CDP WebSocket."
+    );
+
+    try {
+      await connection.send("Page.enable", undefined, this.commandTimeoutMs);
+      await connection.send("Runtime.enable", undefined, this.commandTimeoutMs);
+      const items: BrowserSessionRawItem[] = [];
+
+      for (const source of sources) {
+        await connection.send("Page.navigate", { url: source.url }, this.commandTimeoutMs);
+        await wait(source.platform === "instagram" ? 4500 : 6000);
+        const blockerResponse = await connection.send(
+          "Runtime.evaluate",
+          {
+            expression: browserSessionBlockScript(source.platform),
+            returnByValue: true
+          },
+          this.commandTimeoutMs
+        );
+        const blocker = blockerResponse.result?.result?.value;
+        const blockerMessage =
+          blocker && typeof blocker === "object"
+            ? detectBrowserSessionBlock(
+                blocker as {
+                  platform: CrawlerTask["platform"];
+                  currentUrl?: string;
+                  title?: string;
+                  bodyText?: string;
+                }
+              )
+            : undefined;
+        if (blockerMessage) {
+          throw new Error(blockerMessage);
+        }
+
+        const response = await connection.send(
+          "Runtime.evaluate",
+          {
+            expression: extractDetailScript(source.url),
+            returnByValue: true
+          },
+          this.commandTimeoutMs
+        );
+        const detail = response.result?.result?.value;
+        items.push(
+          parseBrowserDetailMetadata({
+            platform: source.platform,
+            url: source.url,
+            ...(detail && typeof detail === "object"
+              ? (detail as Record<string, string>)
+              : {})
+          })
+        );
+      }
+
+      return items;
     } finally {
       connection.close();
       await this.closeTarget(target.id);
@@ -529,6 +617,9 @@ function extractDetailScript(url: string, fallbackThumbnailUrl?: string): string
       .filter((link) => /^https:\\/\\/www\\.instagram\\.com\\/[^/?#]+\\/?(?:[?#].*)?$/.test(link.href))
       .filter((link) => !/\\/(p|reel|explore|accounts|direct|stories)\\//i.test(link.href))
       .slice(0, 12);
+    const pageImage = Array.from(document.images)
+      .filter((image) => image.naturalWidth >= 200 && image.naturalHeight >= 200)
+      .find((image) => /^https?:\\/\\//i.test(image.currentSrc || image.src || ""));
     const visibleComments = Array.from(document.querySelectorAll("ul li, article ul li, [role='dialog'] li"))
       .map((node) => node.innerText || "")
       .map((text) => text.replace(/\\s+/g, " ").trim())
@@ -538,7 +629,7 @@ function extractDetailScript(url: string, fallbackThumbnailUrl?: string): string
       url: ${JSON.stringify(url)},
       title: document.title || meta("og:title") || "",
       description: meta("og:description") || meta("description") || "",
-      image: meta("og:image") || ${JSON.stringify(fallbackThumbnailUrl || "")},
+      image: meta("og:image") || document.querySelector("video")?.poster || pageImage?.currentSrc || pageImage?.src || ${JSON.stringify(fallbackThumbnailUrl || "")},
       video: meta("og:video") || document.querySelector("video")?.currentSrc || document.querySelector("video")?.src || "",
       bodyText: (document.body?.innerText || "").replace(/\\s+/g, " ").trim().slice(0, 12000),
       engagementText: [likeText, commentText, shareText, viewText].filter(Boolean).join(" "),
@@ -733,6 +824,10 @@ export function detectBrowserSessionBlock(input: {
 }): string | undefined {
   const text = cleanText([input.currentUrl, input.title, input.bodyText].filter(Boolean).join(" "));
   const platformLabel = input.platform === "instagram" ? "Instagram" : "TikTok";
+
+  if (/\/accounts\/suspended(?:[/?#]|$)/i.test(text)) {
+    return `${platformLabel} browser session account is suspended. Finish the appeal or use another logged-in account, then retry.`;
+  }
 
   if (
     /\b(log in|login|sign in|signin)\b/i.test(text) ||

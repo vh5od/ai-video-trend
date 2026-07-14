@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import type { SourceItem } from "@/lib/types";
 import type { TimeWindowTrendSummary } from "@/lib/dashboard";
 import { formatCompactNumber } from "@/lib/dashboard";
 import { Badge } from "./Badge";
 import { MonitorStatus } from "./MonitorStatus";
+import { SourceThumbnail } from "./SourceThumbnail";
 
 export function TimeWindowTrendMap({
   summaries
@@ -98,9 +98,6 @@ export function TimeWindowTrendMap({
 }
 
 function TrendPreview({ source }: { source?: SourceItem }) {
-  const [failed, setFailed] = useState(false);
-  const canShowImage = Boolean(source?.thumbnailUrl) && !failed;
-
   if (!source) {
     return (
       <div className="flex h-16 w-24 items-center justify-center border border-line bg-slate-100 text-xs text-muted">
@@ -112,19 +109,7 @@ function TrendPreview({ source }: { source?: SourceItem }) {
   return (
     <a href={source.url} target="_blank" rel="noreferrer">
       <div className="media-preview relative flex h-16 w-24 items-center justify-center overflow-hidden rounded-lg border border-line bg-slate-100">
-        {canShowImage ? (
-          <img
-            src={source.thumbnailUrl}
-            alt={source.title || source.platform}
-            className="h-full w-full object-cover"
-            referrerPolicy="no-referrer"
-            onError={() => setFailed(true)}
-          />
-        ) : (
-          <div className="px-2 text-center text-xs font-medium uppercase text-muted">
-            {source.platform}
-          </div>
-        )}
+        <SourceThumbnail source={source} className="h-full w-full object-cover" />
         {source.videoUrl ? (
           <span className="absolute bottom-1 right-1 bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
             video

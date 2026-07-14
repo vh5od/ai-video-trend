@@ -25,6 +25,8 @@ describe("admin route protection", () => {
     expect(isProtectedRoute(request("/api/sources", { method: "POST" }))).toBe(true);
     expect(isProtectedRoute(request("/api/crawl/daily", { method: "POST" }))).toBe(true);
     expect(isProtectedRoute(request("/api/collection/candidates"))).toBe(true);
+    expect(isProtectedRoute(request("/api/thumbnail-repairs"))).toBe(true);
+    expect(isProtectedRoute(request("/api/thumbnail-repairs/report", { method: "POST" }))).toBe(false);
   });
 
   test("authorizes basic auth only when password matches", () => {

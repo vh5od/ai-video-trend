@@ -7,6 +7,7 @@ import { Badge } from "@/components/Badge";
 import { MonitorStatus } from "@/components/MonitorStatus";
 import { useI18n } from "@/components/AppShell";
 import { SourceActionLink } from "@/components/SourceActionLink";
+import { SourceThumbnail } from "@/components/SourceThumbnail";
 import { formatCompactNumber, sortDashboardSources } from "@/lib/dashboard";
 import { apiFetch } from "@/lib/client-api";
 
@@ -148,10 +149,9 @@ function TrendMedia({ sources }: { sources: SourceItem[] }) {
           rel="noreferrer"
           title={source.title || source.authorName}
         >
-          <img
-            src={source.thumbnailUrl}
-            alt={source.title || source.platform}
-            referrerPolicy="no-referrer"
+          <SourceThumbnail
+            source={source}
+            className="h-full w-full object-cover"
           />
           <span className="trend-video-tile-label">{source.platform}</span>
         </a>

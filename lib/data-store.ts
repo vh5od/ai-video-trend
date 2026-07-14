@@ -7,6 +7,7 @@ import type {
   CollectionRun,
   Settings,
   SourceItem,
+  ThumbnailRepair,
   TrendTopic
 } from "./types";
 
@@ -15,14 +16,16 @@ type AppStateKey =
   | "source-items"
   | "trend-topics"
   | "collection-runs"
-  | "collection-candidates";
+  | "collection-candidates"
+  | "thumbnail-repairs";
 
 const stateKeysByFileName: Record<string, AppStateKey> = {
   "settings.json": "settings",
   "source-items.json": "source-items",
   "trend-topics.json": "trend-topics",
   "collection-runs.json": "collection-runs",
-  "collection-candidates.json": "collection-candidates"
+  "collection-candidates.json": "collection-candidates",
+  "thumbnail-repairs.json": "thumbnail-repairs"
 };
 
 const postgresUrl = process.env.DATABASE_URL?.trim();
@@ -204,4 +207,12 @@ export function readCollectionRuns(): Promise<CollectionRun[]> {
 
 export function writeCollectionRuns(runs: CollectionRun[]): Promise<void> {
   return writeJson("collection-runs.json", runs);
+}
+
+export function readThumbnailRepairs(): Promise<ThumbnailRepair[]> {
+  return readJson<ThumbnailRepair[]>("thumbnail-repairs.json", []);
+}
+
+export function writeThumbnailRepairs(repairs: ThumbnailRepair[]): Promise<void> {
+  return writeJson("thumbnail-repairs.json", repairs);
 }
