@@ -9,6 +9,7 @@ import type {
 } from "@/lib/types";
 import { Badge } from "@/components/Badge";
 import { SourceTable } from "@/components/SourceTable";
+import { apiFetch } from "@/lib/client-api";
 
 interface StatusResponse {
   instagram: ProviderStatus;
@@ -87,9 +88,9 @@ export default function CollectionPage() {
 
   async function load() {
     const [statusResponse, sourceResponse, candidateResponse] = await Promise.all([
-      fetch("/api/collection/status"),
-      fetch("/api/sources"),
-      fetch(
+      apiFetch("/api/collection/status"),
+      apiFetch("/api/sources"),
+      apiFetch(
         `/api/collection/candidates?${buildCandidateQuery({
           status: candidateStatus,
           keywordMatched: keywordFilter,
@@ -113,7 +114,7 @@ export default function CollectionPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("Saving seed source...");
-    const response = await fetch("/api/sources", {
+    const response = await apiFetch("/api/sources", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form)
@@ -133,7 +134,7 @@ export default function CollectionPage() {
   async function submitX(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("Saving X seed source...");
-    const response = await fetch("/api/sources", {
+    const response = await apiFetch("/api/sources", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(xForm)
@@ -179,7 +180,7 @@ export default function CollectionPage() {
       }
     }
 
-    const response = await fetch("/api/crawler/run", {
+    const response = await apiFetch("/api/crawler/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -213,7 +214,7 @@ export default function CollectionPage() {
       return;
     }
     setInboxMessage(`Updating ${selectedIds.length} selected candidates...`);
-    const response = await fetch("/api/collection/candidates", {
+    const response = await apiFetch("/api/collection/candidates", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: selectedIds, status })
@@ -233,7 +234,7 @@ export default function CollectionPage() {
       return;
     }
     setInboxMessage(`Deleting ${selectedIds.length} selected candidates...`);
-    const response = await fetch("/api/collection/candidates", {
+    const response = await apiFetch("/api/collection/candidates", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: selectedIds })
@@ -252,7 +253,7 @@ export default function CollectionPage() {
     setIsPromoting(true);
     setInboxMessage("Promoting approved candidates into dashboard...");
     try {
-      const response = await fetch("/api/collection/promote", { method: "POST" });
+      const response = await apiFetch("/api/collection/promote", { method: "POST" });
       const json = await response.json();
 
       if (!response.ok) {

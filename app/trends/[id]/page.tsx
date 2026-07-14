@@ -8,6 +8,7 @@ import { MonitorStatus } from "@/components/MonitorStatus";
 import { SourceTable } from "@/components/SourceTable";
 import { SourceActionLink } from "@/components/SourceActionLink";
 import { buildFollowUpCandidates } from "@/lib/dashboard";
+import { apiFetch } from "@/lib/client-api";
 
 type PlatformFilter = "all" | SourceItem["platform"];
 type PlatformOption = { label: string; value: SourceItem["platform"] };
@@ -31,7 +32,7 @@ export default function TrendDetailPage() {
 
   useEffect(() => {
     async function load() {
-      const response = await fetch(`/api/trends/${params.id}`);
+      const response = await apiFetch(`/api/trends/${params.id}`);
       if (!response.ok) return;
       const json = await response.json();
       setTrend(json.trend);

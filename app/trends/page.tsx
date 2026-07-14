@@ -8,6 +8,7 @@ import { MonitorStatus } from "@/components/MonitorStatus";
 import { useI18n } from "@/components/AppShell";
 import { SourceActionLink } from "@/components/SourceActionLink";
 import { formatCompactNumber, sortDashboardSources } from "@/lib/dashboard";
+import { apiFetch } from "@/lib/client-api";
 
 export default function TrendCardsPage() {
   const { dictionary } = useI18n();
@@ -17,8 +18,8 @@ export default function TrendCardsPage() {
   useEffect(() => {
     async function load() {
       const [trendResponse, sourceResponse] = await Promise.all([
-        fetch("/api/trends"),
-        fetch("/api/sources")
+        apiFetch("/api/trends"),
+        apiFetch("/api/sources")
       ]);
       const trendJson = await trendResponse.json();
       const sourceJson = await sourceResponse.json();

@@ -5,6 +5,7 @@ import type { CrawlResult } from "@/lib/crawl-state";
 import { crawlStateStore, hydrateBrowserCrawlState } from "@/lib/crawl-state-store";
 import type { CollectionRun, Settings } from "@/lib/types";
 import { TagListEditor } from "@/components/TagListEditor";
+import { apiFetch } from "@/lib/client-api";
 
 interface SettingsForm {
   instagramHashtags: string;
@@ -35,7 +36,7 @@ export default function SettingsPage() {
 
 
   async function load() {
-    const response = await fetch("/api/settings");
+    const response = await apiFetch("/api/settings");
     const nextSettings = (await response.json()) as Settings;
     setSettings(nextSettings);
     setForm(toForm(nextSettings));
@@ -61,7 +62,7 @@ export default function SettingsPage() {
   }
 
   async function saveCurrentForm(currentForm: SettingsForm): Promise<Settings> {
-    const response = await fetch("/api/settings", {
+    const response = await apiFetch("/api/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(currentForm)
@@ -114,7 +115,7 @@ export default function SettingsPage() {
       setForm(toForm(savedSettings));
       setMessage("Settings saved before crawl.");
 
-      const response = await fetch("/api/crawl/daily", {
+      const response = await apiFetch("/api/crawl/daily", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platform }),

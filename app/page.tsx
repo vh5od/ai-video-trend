@@ -10,6 +10,7 @@ import { DashboardControls } from "@/components/DashboardControls";
 import { FollowUpCandidates } from "@/components/FollowUpCandidates";
 import { SourceLeaderboard } from "@/components/SourceLeaderboard";
 import { TimeWindowTrendMap } from "@/components/TimeWindowTrendMap";
+import { apiFetch } from "@/lib/client-api";
 import {
   buildFollowUpCandidates,
   buildTimeWindowTrendSummaries,
@@ -39,8 +40,8 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       const [trendResponse, sourceResponse] = await Promise.all([
-        fetch("/api/trends"),
-        fetch("/api/sources")
+        apiFetch("/api/trends"),
+        apiFetch("/api/sources")
       ]);
       const trendJson = await trendResponse.json();
       const sourceJson = await sourceResponse.json();
