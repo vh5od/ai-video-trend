@@ -69,7 +69,7 @@ function clampLimit(value: number): number {
 }
 
 export function isFatalBrowserSessionError(message: string): boolean {
-  return /browser session is not (?:connected|logged in)|browser session account is suspended|blocked by login or verification|No visible .* post\/video links found/i.test(
+  return /browser session is not (?:connected|logged in)|browser session account is suspended|blocked by login or verification/i.test(
     message
   );
 }

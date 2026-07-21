@@ -92,9 +92,7 @@ describe("daily crawl task planning", () => {
         "Browser session is not connected. Start Chrome/Edge with --remote-debugging-port=9222."
       )
     ).toBe(true);
-    expect(isFatalBrowserSessionError("No visible tiktok post/video links found.")).toBe(
-      true
-    );
+    expect(isFatalBrowserSessionError("No visible tiktok post/video links found.")).toBe(false);
     expect(isFatalBrowserSessionError("Daily crawl hashtag failed because one post was private.")).toBe(
       false
     );

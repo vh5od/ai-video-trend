@@ -2,6 +2,8 @@ import { describe, expect, test } from "vitest";
 import {
   buildBrowserSessionUrl,
   collectBrowserSessionItems,
+  instagramAccountReelsUrl,
+  normalizeDiscoveredBrowserUrl,
   detectBrowserSessionBlock,
   parseBrowserDetailMetadata,
   withTimeout
@@ -22,6 +24,36 @@ function task(input: Partial<CrawlerTask>): CrawlerTask {
 }
 
 describe("browser session crawler URL builder", () => {
+  test("normalizes Instagram profile-prefixed post links", () => {
+    expect(
+      normalizeDiscoveredBrowserUrl(
+        "https://www.instagram.com/dreamfall.art/reel/Dasvq88N9es/",
+        "instagram"
+      )
+    ).toBe("https://www.instagram.com/reel/Dasvq88N9es/");
+    expect(
+      normalizeDiscoveredBrowserUrl(
+        "https://www.instagram.com/p/ABC123/?img_index=1",
+        "instagram"
+      )
+    ).toBe("https://www.instagram.com/p/ABC123/");
+  });
+
+  test("builds an Instagram account Reels fallback URL", () => {
+    expect(
+      instagramAccountReelsUrl(
+        "https://www.instagram.com/dreamfall.art/",
+        "instagram"
+      )
+    ).toBe("https://www.instagram.com/dreamfall.art/reels/");
+    expect(
+      instagramAccountReelsUrl(
+        "https://www.instagram.com/explore/tags/aivideo/",
+        "instagram"
+      )
+    ).toBeUndefined();
+  });
+
   test("builds Instagram hashtag and account URLs", () => {
     expect(
       buildBrowserSessionUrl(

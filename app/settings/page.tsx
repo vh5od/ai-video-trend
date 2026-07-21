@@ -1,7 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useState, useSyncExternalStore } from "react";
-import type { CrawlResult } from "@/lib/crawl-state";
+import {
+  categorizeCrawlTasks,
+  type CrawlResult,
+  type PlannedCrawlTask
+} from "@/lib/crawl-state";
 import { crawlStateStore, hydrateBrowserCrawlState } from "@/lib/crawl-state-store";
 import type { CollectionRun, Settings } from "@/lib/types";
 import { TagListEditor } from "@/components/TagListEditor";
@@ -390,8 +394,7 @@ export default function SettingsPage() {
 }
 
 function CrawlResultPanel({ result }: { result: CrawlResult }) {
-  const failedRuns = result.runs.filter((run) => run.status === "failed");
-  const readyRuns = result.runs.filter((run) => run.status !== "failed");
+  const { completed, failed, notRun } = categorizeCrawlTasks(result);
   const tone =
     result.status === "success"
       ? "border-emerald-200 bg-emerald-50 text-emerald-950"
@@ -413,7 +416,7 @@ function CrawlResultPanel({ result }: { result: CrawlResult }) {
               ? `Opening configured ${platformLabel(result.platform)} crawl tasks.`
               : result.status === "paused" || result.status === "stopped" || result.status === "interrupted"
                 ? `Last crawl status: ${result.status}.`
-              : `${readyRuns.length} tasks completed, ${failedRuns.length} failed.`}
+              : `${completed.length} tasks completed, ${failed.length} failed, ${notRun.length} not run.`}
           </p>
         </div>
         <div className="grid grid-cols-3 gap-2 text-center text-sm">
@@ -422,14 +425,14 @@ function CrawlResultPanel({ result }: { result: CrawlResult }) {
           <Metric label="Stored" value={result.itemsStored} />
         </div>
       </div>
-      {failedRuns.length > 0 ? (
+      {failed.length > 0 ? (
         <div className="mt-4 border-t border-current/20 pt-3">
           <p className="text-sm font-semibold">Failed tasks</p>
           <div className="mt-2 space-y-2">
-            {failedRuns.slice(0, 6).map((run) => (
+            {failed.slice(0, 6).map(({ task, run }) => (
               <div key={run.id} className="bg-white/50 px-3 py-2 text-sm">
                 <p className="font-medium">
-                  {run.platform} / {run.provider}
+                  {task ? taskLabel(task) : `${run.platform} / ${run.provider}`}
                 </p>
                 <p className="mt-1">{run.message}</p>
               </div>
@@ -437,23 +440,48 @@ function CrawlResultPanel({ result }: { result: CrawlResult }) {
           </div>
         </div>
       ) : null}
-      {result.plannedTasks && result.plannedTasks.length > 0 ? (
+      {completed.length > 0 || notRun.length > 0 ? (
         <div className="mt-4 border-t border-current/20 pt-3">
-          <p className="text-sm font-semibold">Executed tasks</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {result.plannedTasks.map((task) => (
-              <span
-                key={`${task.platform}_${task.mode}_${task.query}`}
-                className="border border-current/20 bg-white/50 px-2 py-1 text-xs"
-              >
-                {task.platform} / {task.mode} / {task.query}
-              </span>
-            ))}
-          </div>
+          {completed.length > 0 ? (
+            <>
+              <p className="text-sm font-semibold">Completed tasks</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {completed.map(({ task, run }) => (
+                  <span
+                    key={run.id}
+                    className="border border-current/20 bg-white/50 px-2 py-1 text-xs"
+                  >
+                    {task ? taskLabel(task) : `${run.platform} / ${run.provider}`}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : null}
+          {notRun.length > 0 ? (
+            <>
+              <p className={`${completed.length > 0 ? "mt-3" : ""} text-sm font-semibold`}>
+                Not run
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {notRun.map((task) => (
+                  <span
+                    key={`${task.platform}_${task.mode}_${task.query}`}
+                    className="border border-current/20 bg-white/50 px-2 py-1 text-xs"
+                  >
+                    {taskLabel(task)}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : null}
         </div>
       ) : null}
     </section>
   );
+}
+
+function taskLabel(task: PlannedCrawlTask): string {
+  return `${task.platform} / ${task.mode} / ${task.query}`;
 }
 
 function CrawlButton({

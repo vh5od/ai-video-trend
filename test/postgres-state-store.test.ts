@@ -79,4 +79,26 @@ describe("postgres app state store", () => {
     expect(topics[0].id).toBe("trend_ai");
     expect(rowsByKey.has("trend-topics")).toBe(true);
   });
+
+  test("sanitizes text that Postgres jsonb cannot represent", async () => {
+    const store = await loadStore();
+
+    await store.writeSettings({
+      instagramHashtags: ["ai\u0000video", "broken\uD800text"],
+      instagramCreators: [],
+      tiktokHashtags: [],
+      tiktokCreators: [],
+      keywords: [],
+      dailyCrawlLimit: 10,
+      commentsPerVideo: 10,
+      minLikes: 0,
+      refreshSchedule: "manual"
+    });
+
+    const written = rowsByKey.get("settings") as { instagramHashtags: string[] };
+    expect(written.instagramHashtags).toEqual(["aivideo", "broken\uFFFDtext"]);
+    const insert = calls.find((call) => call.strings.join("").includes("INSERT INTO app_state"));
+    expect(insert?.values[1]).not.toContain("\\u0000");
+    expect(insert?.values[1]).not.toContain("\\ud800");
+  });
 });

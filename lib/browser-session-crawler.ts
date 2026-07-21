@@ -193,7 +193,33 @@ export class CdpBrowserSessionClient implements BrowserSessionClient {
         this.commandTimeoutMs
       );
       const value = response.result?.result?.value;
-      const links = Array.isArray(value) ? normalizeBrowserLinks(value) : [];
+      let links = Array.isArray(value) ? normalizeBrowserLinks(value, platform) : [];
+      const accountReelsUrl = instagramAccountReelsUrl(url, platform);
+      if (links.length === 0 && accountReelsUrl) {
+        await connection.send("Page.navigate", { url: accountReelsUrl }, this.commandTimeoutMs);
+        await wait(3500);
+        await connection.send(
+          "Runtime.evaluate",
+          {
+            expression: autoScrollScript(),
+            awaitPromise: true,
+            returnByValue: true
+          },
+          this.commandTimeoutMs
+        );
+        const reelsResponse = await connection.send(
+          "Runtime.evaluate",
+          {
+            expression: extractLinksScript(platform, limit),
+            returnByValue: true
+          },
+          this.commandTimeoutMs
+        );
+        const reelsValue = reelsResponse.result?.result?.value;
+        links = Array.isArray(reelsValue)
+          ? normalizeBrowserLinks(reelsValue, platform)
+          : [];
+      }
       if (links.length === 0) {
         const blockerResponse = await connection.send(
           "Runtime.evaluate",
@@ -464,14 +490,19 @@ function normalizeBrowserItems(value: unknown[]): BrowserSessionRawItem[] {
   return items;
 }
 
-function normalizeBrowserLinks(value: unknown[]): Array<{ url: string; thumbnailUrl?: string }> {
+function normalizeBrowserLinks(
+  value: unknown[],
+  platform: CrawlerTask["platform"]
+): Array<{ url: string; thumbnailUrl?: string }> {
   const links: Array<{ url: string; thumbnailUrl?: string }> = [];
 
   for (const entry of value) {
     const record = entry && typeof entry === "object" ? (entry as { url?: unknown; thumbnailUrl?: unknown }) : null;
     if (typeof record?.url !== "string" || !record.url.trim()) continue;
+    const url = normalizeDiscoveredBrowserUrl(record.url, platform);
+    if (!url) continue;
     links.push({
-      url: record.url.trim(),
+      url,
       thumbnailUrl:
         typeof record.thumbnailUrl === "string" && record.thumbnailUrl.trim()
           ? record.thumbnailUrl.trim()
@@ -482,10 +513,43 @@ function normalizeBrowserLinks(value: unknown[]): Array<{ url: string; thumbnail
   return links;
 }
 
+export function normalizeDiscoveredBrowserUrl(
+  value: string,
+  platform: CrawlerTask["platform"]
+): string | undefined {
+  const url = value.trim();
+  if (platform !== "instagram") return url || undefined;
+
+  const match = url.match(
+    /instagram\.com\/(?:[^/?#]+\/)?(p|reel)\/([^/?#]+)/i
+  );
+  return match
+    ? `https://www.instagram.com/${match[1].toLowerCase()}/${match[2]}/`
+    : undefined;
+}
+
+export function instagramAccountReelsUrl(
+  value: string,
+  platform: CrawlerTask["platform"]
+): string | undefined {
+  if (platform !== "instagram") return undefined;
+  try {
+    const url = new URL(value);
+    const match = url.pathname.match(/^\/([^/]+)\/?$/);
+    const handle = match?.[1];
+    if (!handle || /^(accounts|direct|explore|p|reel|reels|stories)$/i.test(handle)) {
+      return undefined;
+    }
+    return `${url.origin}/${handle}/reels/`;
+  } catch {
+    return undefined;
+  }
+}
+
 function extractLinksScript(platform: CrawlerTask["platform"], limit: number): string {
   const linkPattern =
     platform === "instagram"
-      ? "instagram.com/(p|reel)/"
+      ? "instagram.com/(?:[^/?#]+/)?(p|reel)/"
       : "tiktok.com/@[^/]+/video/";
 
   return `(() => {
@@ -500,9 +564,14 @@ function extractLinksScript(platform: CrawlerTask["platform"], limit: number): s
       const container = anchor.closest("article, div") || anchor;
       const img = container.querySelector("img");
       const video = container.querySelector("video");
+      const backgroundNode = anchor.querySelector('[style*="background-image"]');
+      const backgroundImage = backgroundNode
+        ? getComputedStyle(backgroundNode).backgroundImage
+        : "";
+      const backgroundUrl = backgroundImage.match(/^url\\(["']?(.*?)["']?\\)$/)?.[1];
       items.push({
         url: href,
-        thumbnailUrl: img?.currentSrc || img?.src || video?.poster
+        thumbnailUrl: img?.currentSrc || img?.src || video?.poster || backgroundUrl
       });
       if (items.length >= ${JSON.stringify(limit)}) break;
     }

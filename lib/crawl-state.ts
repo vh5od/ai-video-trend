@@ -30,6 +30,29 @@ export interface CrawlResult {
   plannedTasks?: PlannedCrawlTask[];
 }
 
+export interface CrawlTaskOutcome {
+  task?: PlannedCrawlTask;
+  run: CollectionRun;
+}
+
+export function categorizeCrawlTasks(result: CrawlResult): {
+  completed: CrawlTaskOutcome[];
+  failed: CrawlTaskOutcome[];
+  notRun: PlannedCrawlTask[];
+} {
+  const plannedTasks = result.plannedTasks ?? [];
+  const outcomes = result.runs.map((run, index) => ({
+    task: plannedTasks[index],
+    run
+  }));
+
+  return {
+    completed: outcomes.filter(({ run }) => run.status !== "failed"),
+    failed: outcomes.filter(({ run }) => run.status === "failed"),
+    notRun: plannedTasks.slice(result.runs.length)
+  };
+}
+
 export interface PersistedCrawlState<T> {
   version: 1 | typeof CRAWL_STATE_VERSION;
   result: T | null;

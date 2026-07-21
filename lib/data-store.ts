@@ -134,12 +134,33 @@ async function writePostgresJson<T>(key: AppStateKey, value: T): Promise<void> {
   if (!postgresSql) return;
 
   await ensurePostgresTable();
-  await postgresSql`
-    INSERT INTO app_state (key, value, updated_at)
-    VALUES (${key}, ${JSON.stringify(value)}::jsonb, now())
-    ON CONFLICT (key)
-    DO UPDATE SET value = EXCLUDED.value, updated_at = now()
-  `;
+  const serialized = serializePostgresJson(value);
+  try {
+    await postgresSql`
+      INSERT INTO app_state (key, value, updated_at)
+      VALUES (${key}, ${serialized}::jsonb, now())
+      ON CONFLICT (key)
+      DO UPDATE SET value = EXCLUDED.value, updated_at = now()
+    `;
+  } catch (error) {
+    throw new Error(`Failed to write app_state.${key}: ${errorMessage(error)}`);
+  }
+}
+
+export function serializePostgresJson<T>(value: T): string {
+  const serialized = JSON.stringify(value, (_key, entry) =>
+    typeof entry === "string" ? sanitizePostgresText(entry) : entry
+  );
+  if (serialized === undefined) {
+    throw new Error("Cannot serialize an undefined app_state document.");
+  }
+  return serialized;
+}
+
+function sanitizePostgresText(value: string): string {
+  return value
+    .replace(/\u0000/g, "")
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "\uFFFD");
 }
 
 function isMissingFileError(error: unknown): boolean {
